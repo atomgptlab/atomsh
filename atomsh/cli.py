@@ -1,6 +1,7 @@
 """Command-line entry point for atomsh."""
 
 import argparse
+import os
 import select
 import subprocess
 import sys
@@ -40,8 +41,19 @@ def _require_token() -> str:
 
 # ── commands ─────────────────────────────────────────────────────────────────
 
+def _looks_remote() -> bool:
+    """Whether this shell is almost certainly on another machine."""
+    return bool(os.environ.get("SSH_CONNECTION") or os.environ.get("SSH_TTY"))
+
+
 def cmd_login(args) -> int:
-    if args.key:
+    if args.manual:
+        try:
+            token = auth.login_manual()
+        except auth.AuthError as e:
+            print(f"Login failed: {e}")
+            return 1
+    elif args.key:
         try:
             token = input("Paste your atomgpt.org API key (sk-…): ").strip()
         except (EOFError, KeyboardInterrupt):
@@ -51,11 +63,17 @@ def cmd_login(args) -> int:
             print("That does not look like an API key (expected sk-…).")
             return 1
     else:
+        if _looks_remote():
+            print(f"{DIM}This looks like an SSH session. If the browser runs "
+                  f"on another machine, its 127.0.0.1 is not this host: use "
+                  f"`atomsh login --manual`.{RESET}\n")
         try:
             token = auth.login_oauth(open_browser=not args.no_browser)
         except auth.AuthError as e:
             print(f"Login failed: {e}")
-            print(f"On a headless machine, use {BOLD}atomsh login --key{RESET}.")
+            print(f"Alternatives: {BOLD}atomsh login --manual{RESET} to paste "
+                  f"the address back, or {BOLD}atomsh login --key{RESET} to "
+                  f"paste an API key.")
             return 1
 
     try:
@@ -359,6 +377,10 @@ def build_command_parser(name: str) -> argparse.ArgumentParser:
                        help="Paste an API key instead of using the browser.")
         p.add_argument("--no-browser", action="store_true",
                        help="Print the URL instead of opening a browser.")
+        p.add_argument("--manual", action="store_true",
+                       help="For a remote host: approve in a browser "
+                            "anywhere, then paste the redirect address back. "
+                            "No local listener is used.")
     return p
 
 

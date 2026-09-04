@@ -129,13 +129,8 @@ def _free_port() -> int:
         return s.getsockname()[1]
 
 
-def login_oauth(open_browser: bool = True, timeout: int = 300) -> str:
-    """Run the browser login and return the access token.
-
-    Starts a loopback listener, registers this client, sends the user to the
-    consent screen, then exchanges the returned code for a token.
-    """
-    port = _free_port()
+def _start_flow(port: int) -> dict:
+    """Register this client and build the authorization URL."""
     redirect_uri = f"http://127.0.0.1:{port}/callback"
     verifier, challenge = _pkce_pair()
     state = secrets.token_urlsafe(16)
@@ -160,6 +155,78 @@ def login_oauth(open_browser: bool = True, timeout: int = 300) -> str:
         "state": state,
         "scope": "mcp",
     })
+    return {"client_id": client_id, "redirect_uri": redirect_uri,
+            "verifier": verifier, "state": state, "url": url}
+
+
+def _exchange(flow: dict, code: str) -> str:
+    """Trade an authorization code for the access token."""
+    try:
+        tok = httpx.post(
+            TOKEN_URL,
+            data={
+                "grant_type": "authorization_code",
+                "code": code,
+                "redirect_uri": flow["redirect_uri"],
+                "client_id": flow["client_id"],
+                "code_verifier": flow["verifier"],
+            },
+            timeout=30,
+        )
+        tok.raise_for_status()
+        return tok.json()["access_token"]
+    except (httpx.HTTPError, KeyError, ValueError) as e:
+        raise AuthError(f"token exchange failed: {e}") from e
+
+
+def _code_from_input(text: str) -> tuple:
+    """Accept either the whole redirect URL or a bare code."""
+    text = text.strip()
+    if "?" in text or text.startswith("http"):
+        params = urllib.parse.parse_qs(urllib.parse.urlparse(text).query)
+        return (params.get("code", [""])[0], params.get("state", [""])[0])
+    return (text, "")
+
+
+def login_manual(timeout: int = 300) -> str:
+    """Login without a listener, for a machine the browser cannot reach.
+
+    On a remote host the redirect lands on the browser's own 127.0.0.1, not the
+    host running Atomsh, so nothing can catch the code. The browser still shows
+    it in the address bar, and pasting that back is enough to finish.
+    """
+    flow = _start_flow(_free_port())
+    print("Open this URL in a browser on any machine:\n")
+    print(f"  {flow['url']}\n")
+    print("After approving, the browser will fail to load a 127.0.0.1 page.")
+    print("That is expected on a remote host. Copy its full address and paste "
+          "it here.\n")
+    try:
+        pasted = input("Redirect URL (or just the code): ")
+    except (EOFError, KeyboardInterrupt):
+        print()
+        raise AuthError("cancelled")
+
+    code, state = _code_from_input(pasted)
+    if not code:
+        raise AuthError("no authorization code found in that input")
+    if state and state != flow["state"]:
+        raise AuthError("state mismatch, aborting")
+
+    token = _exchange(flow, code)
+    save_token(token)
+    return token
+
+
+def login_oauth(open_browser: bool = True, timeout: int = 300) -> str:
+    """Run the browser login and return the access token.
+
+    Starts a loopback listener, registers this client, sends the user to the
+    consent screen, then exchanges the returned code for a token.
+    """
+    port = _free_port()
+    flow = _start_flow(port)
+    redirect_uri, state, url = flow["redirect_uri"], flow["state"], flow["url"]
 
     server = HTTPServer(("127.0.0.1", port), _CallbackHandler)
     server.timeout = timeout
@@ -179,28 +246,17 @@ def login_oauth(open_browser: bool = True, timeout: int = 300) -> str:
 
     result = _CallbackHandler.result
     if not result:
-        raise AuthError("timed out waiting for the browser redirect")
+        raise AuthError(
+            "timed out waiting for the browser redirect. If the browser is on "
+            "a different machine, its 127.0.0.1 is not this one: run "
+            "`atomsh login --manual` and paste the address back, or "
+            "`atomsh login --key`"
+        )
     if result.get("error"):
         raise AuthError(f"authorization denied: {result['error']}")
     if result.get("state") != state:
         raise AuthError("state mismatch, aborting")
 
-    try:
-        tok = httpx.post(
-            TOKEN_URL,
-            data={
-                "grant_type": "authorization_code",
-                "code": result["code"],
-                "redirect_uri": redirect_uri,
-                "client_id": client_id,
-                "code_verifier": verifier,
-            },
-            timeout=30,
-        )
-        tok.raise_for_status()
-        token = tok.json()["access_token"]
-    except (httpx.HTTPError, KeyError, ValueError) as e:
-        raise AuthError(f"token exchange failed: {e}") from e
-
+    token = _exchange(flow, result["code"])
     save_token(token)
     return token

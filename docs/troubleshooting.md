@@ -29,8 +29,18 @@ Under WSL the URL is handed to Windows, so your Windows default browser opens
 and the callback still reaches the listener inside WSL through localhost
 forwarding.
 
-On a server with no browser at all, use `atomsh login --key` and paste an API
-key from atomgpt.org.
+## Login approved, but nothing happened
+
+You are on a remote host. The redirect went to `127.0.0.1` on the machine
+running the browser, which is not the machine running Atomsh, so the code was
+delivered to a listener that does not exist there.
+
+```sh
+atomsh login --manual
+```
+
+Approve anywhere, then paste the failed page's address back. Or use
+`atomsh login --key` and paste an API key.
 
 ## `Not signed in`
 

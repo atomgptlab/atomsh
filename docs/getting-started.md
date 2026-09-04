@@ -60,7 +60,22 @@ The loopback address is the point: the code travels from your browser to your
 own machine and never crosses the network. The `code_challenge` in the URL is
 PKCE, which stops an intercepted code from being redeemed by anyone else.
 
-On a machine with no browser:
+### On a remote machine
+
+Over SSH, on a cluster login node, or anywhere the browser runs somewhere
+else, the loopback flow cannot complete: the redirect lands on the browser
+machine's own `127.0.0.1`, not on the host running Atomsh. Approving works and
+nothing arrives.
+
+```sh
+atomsh login --manual
+```
+
+Approve in a browser anywhere, let the `127.0.0.1` page fail to load, then
+paste that address back into the terminal. The code is in it, and no listener
+is needed. Atomsh detects an SSH session and points this out before you start.
+
+If you would rather not use a browser at all:
 
 ```sh
 atomsh login --key
