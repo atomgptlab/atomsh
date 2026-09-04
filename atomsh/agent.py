@@ -87,7 +87,7 @@ class Agent:
             if not calls:
                 final = message.get("content") or ""
                 if not final and not state["last"]:
-                    print(self._dim("(no response — try rephrasing)"))
+                    print(self._dim("(no response, try rephrasing)"))
                 return final
 
             for call in calls:
@@ -112,7 +112,7 @@ class Agent:
 
         decision, reason = self.permissions.check(name, args)
         if decision != ALLOW:
-            print(self._dim(f"  ✗ {name} — {reason}"))
+            print(self._dim(f"  ✗ {name}: {reason}"))
             return self._reply(call, f"Denied: {reason}")
 
         print(self._dim(f"  · {name}({self._summarize(args)})"))

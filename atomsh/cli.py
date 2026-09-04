@@ -19,7 +19,7 @@ BOLD = "\033[1m"
 DIM = "\033[2m"
 RESET = "\033[0m"
 
-BANNER = f"""{BOLD}atomsh{RESET} {DIM}v{__version__} — your autonomous coding agent for science{RESET}"""
+BANNER = f"""{BOLD}atomsh{RESET} {DIM}v{__version__}, your autonomous coding agent for science{RESET}"""
 
 REPL_HELP = """  !<command>    run a shell command yourself, without the model
   /history      replay this conversation in full
@@ -110,7 +110,7 @@ def _build_agent(args, root: Path) -> Agent:
         try:
             remote.cached_schema(MCP_TOOLS_CACHE, MCP_CACHE_TTL)
         except MCPError as e:
-            print(f"{DIM}materials tools unavailable ({e}) — continuing "
+            print(f"{DIM}materials tools unavailable ({e}), continuing "
                   f"without them{RESET}")
             remote = None
 
@@ -138,7 +138,7 @@ def run_repl(args, root: Path) -> int:
         import readline
 
         # Without this, every line of a pasted block is submitted as its own
-        # prompt — a 40-line paste becomes 40 model calls. Requires GNU
+        # prompt, so a 40-line paste becomes 40 model calls. Requires GNU
         # readline 8.1+; harmless where it is not supported, which is what
         # _read_input's coalescing covers.
         readline.parse_and_bind("set enable-bracketed-paste on")
@@ -191,13 +191,13 @@ def run_repl(args, root: Path) -> int:
             _shell_escape(agent, line[1:].strip(), root)
             continue
         if line.startswith("/"):
-            print(f"{DIM}unknown command — /help for the list{RESET}")
+            print(f"{DIM}unknown command, see /help for the list{RESET}")
             continue
 
         try:
             agent.run(line)
         except SystemExit:
-            print(f"{DIM}not signed in — run `atomsh login` in another "
+            print(f"{DIM}not signed in. Run `atomsh login` in another "
                   f"shell, then retry{RESET}")
         except KeyboardInterrupt:
             print(f"\n{DIM}interrupted{RESET}")
@@ -209,7 +209,7 @@ def run_repl(args, root: Path) -> int:
 def _shell_escape(agent, command: str, root) -> None:
     """Run a command the user typed directly.
 
-    No approval prompt — they typed it — and no model round-trip. The result
+    No approval prompt, since they typed it, and no model round-trip. The result
     is recorded in the conversation so the agent knows what just happened.
     """
     if not command:
@@ -251,7 +251,7 @@ def _read_input(prompt: str) -> str:
     except (OSError, ValueError):
         pass
     if len(lines) > 1:
-        print(f"{DIM}  ({len(lines)} lines pasted — sending as one "
+        print(f"{DIM}  ({len(lines)} lines pasted, sending as one "
               f"prompt){RESET}")
     return "\n".join(lines).strip()
 
@@ -319,13 +319,13 @@ examples:
 def build_parser() -> argparse.ArgumentParser:
     """Parser for an agent invocation.
 
-    Subcommands are dispatched in main() before this runs — argparse
+    Subcommands are dispatched in main() before this runs, because argparse
     subparsers and a free-text positional cannot coexist, since the first
     word of a prompt would be read as a command name.
     """
     p = argparse.ArgumentParser(
         prog="atomsh",
-        description="Atomsh — your autonomous coding agent for science. Powered by AtomGPT (atomgpt.org).",
+        description="Atomsh, your autonomous coding agent for science. Powered by AtomGPT (atomgpt.org).",
         epilog=EPILOG,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )

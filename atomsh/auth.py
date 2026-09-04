@@ -103,7 +103,7 @@ class _CallbackHandler(BaseHTTPRequestHandler):
 
     result = None
 
-    def do_GET(self):  # noqa: N802 — name fixed by BaseHTTPRequestHandler
+    def do_GET(self):  # noqa: N802, name fixed by BaseHTTPRequestHandler
         params = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
         _CallbackHandler.result = {k: v[0] for k, v in params.items()}
         ok = "code" in _CallbackHandler.result
@@ -183,7 +183,7 @@ def login_oauth(open_browser: bool = True, timeout: int = 300) -> str:
     if result.get("error"):
         raise AuthError(f"authorization denied: {result['error']}")
     if result.get("state") != state:
-        raise AuthError("state mismatch — aborting")
+        raise AuthError("state mismatch, aborting")
 
     try:
         tok = httpx.post(

@@ -1,6 +1,6 @@
 """The coding tools atomsh exposes to the model.
 
-Each tool returns a string — that is what goes back to the model as the tool
+Each tool returns a string, which is what goes back to the model as the tool
 result. Errors are returned as text rather than raised, so a bad path or a
 failed command becomes something the model can read and correct.
 """
@@ -82,7 +82,7 @@ def write_file(root: Path, path: str, content: str) -> str:
 def edit_file(root: Path, path: str, old_string: str, new_string: str,
               replace_all: bool = False) -> str:
     """Replace exact text in a file. The match must be unique unless
-    replace_all is set — an ambiguous edit is a bug, not a choice."""
+    replace_all is set. An ambiguous edit is a bug, not a choice."""
     target = _resolve(path, root)
     try:
         original = target.read_text(encoding="utf-8")

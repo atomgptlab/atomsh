@@ -53,7 +53,7 @@ class AtomGPT:
 
         `on_text` is called with each text delta as it arrives, so the caller
         can render tokens live. Tool-call deltas are accumulated by index and
-        returned whole — a half-parsed argument string is useless to a caller.
+        returned whole, because a half-parsed argument string is useless to a caller.
         """
         body = {
             "model": model,

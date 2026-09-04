@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# atomsh installer —  curl -fsSL https://atomgpt.org/install | bash
+# atomsh installer:  curl -fsSL https://atomgpt.org/install | bash
 #
 # Installs the atomsh CLI in an isolated environment and puts the launcher
 # on your PATH. Nothing is installed system-wide; no sudo.
@@ -42,7 +42,7 @@ install_with_uv() {
 # ── strategy 2: venv + pip ───────────────────────────────────────────────────
 # Works on a normal Python install. Note that `python -m venv` can succeed on
 # distributions that ship Python without ensurepip, leaving a venv with no pip
-# in it — so the venv is only accepted once pip is confirmed present.
+# in it, so the venv is only accepted once pip is confirmed present.
 find_python() {
   for candidate in python3.13 python3.12 python3.11 python3.10 python3; do
     if have "$candidate" && "$candidate" -c \

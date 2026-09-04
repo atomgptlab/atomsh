@@ -7,8 +7,8 @@ are not filtered on the way out, so a client has to strip them itself.
 
 import re
 
-# An opening channel marker is followed by the channel's name — metadata, not
-# text — so the name goes with it.
+# An opening channel marker is followed by the channel's name, which is
+# metadata rather than text, so the name goes with it.
 CHANNEL_OPEN = re.compile(r"<\|channel\|?>\s*\w*")
 
 # Any remaining lone control marker.

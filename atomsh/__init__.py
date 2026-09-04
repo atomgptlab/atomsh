@@ -1,4 +1,4 @@
-"""Atomsh — your autonomous coding agent for science.
+"""Atomsh, your autonomous coding agent for science.
 
 Installed as the `atomsh` command; entry point is `atomsh.cli:main`.
 """

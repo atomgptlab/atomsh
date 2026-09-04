@@ -12,9 +12,9 @@ class Permissions:
     """Decide whether a tool call may run.
 
     Modes:
-      ask       — prompt before anything that writes or executes (default)
-      auto      — never prompt
-      readonly  — refuse writes and commands outright
+      ask       prompt before anything that writes or executes (default)
+      auto      never prompt
+      readonly  refuse writes and commands outright
     """
 
     def __init__(self, mode: str = "ask", root=None):

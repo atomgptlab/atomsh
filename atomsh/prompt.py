@@ -32,11 +32,11 @@ Platform: {platform}
 MATERIALS_NOTE = """
 # Materials tools
 You also have the AtomGPT materials tools: explore, build, predict,
-characterize, apply, validate. Each dispatches to a family of AtomGPT apps —
-call one with no arguments to list its apps, with `app="/path"` to see that
+characterize, apply, validate. Each dispatches to a family of AtomGPT apps.
+Call one with no arguments to list its apps, with `app="/path"` to see that
 app's parameters, and with arguments to run it.
 
-Use them for any question about materials, structures, or their properties —
+Use them for any question about materials, structures, or their properties:
 JARVIS-DFT lookups, ALIGNN predictions, band structures, XRD, interfaces,
 protein folding. Do not answer such questions from memory: look them up.
 """

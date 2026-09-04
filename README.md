@@ -3,10 +3,10 @@
 **Your autonomous coding agent for science.**
 
 Atomsh reads and edits files, searches the codebase, and runs commands from
-your terminal — and it can look a material up while doing it.
+your terminal, and it can look a material up while doing it.
 
 > **You need an account on [atomgpt.org](https://atomgpt.org).** That account
-> is the only credential Atomsh uses — there is no OpenAI or Anthropic key to
+> is the only credential Atomsh uses. There is no OpenAI or Anthropic key to
 > supply, and no other provider to configure. Sign up first, then install.
 
 Python 3.10 or newer. Linux and macOS; Windows via WSL.
@@ -84,8 +84,8 @@ loop. Use them through a chat client instead.
 
 atomsh connects to the AtomGPT MCP server with the same credential and
 carries six more tools by default: `explore`, `build`, `predict`,
-`characterize`, `apply`, `validate`. Each dispatches to a family of AtomGPT apps — JARVIS-DFT lookups,
-ALIGNN predictions, band structures, XRD, interfaces, protein folding — so the
+`characterize`, `apply`, `validate`. Each dispatches to a family of AtomGPT apps: JARVIS-DFT lookups,
+ALIGNN predictions, band structures, XRD, interfaces, protein folding, so the
 agent can look a material up instead of answering from the model's memory:
 
 ```
@@ -96,7 +96,7 @@ OptB88vdW 0.731 eV · mBJ 1.277 eV · HSE 1.22 eV
 
 The tool list is cached under `~/.local/share/atomsh/` and refreshed daily,
 and the MCP session is opened on first use, so carrying them costs nothing at
-startup. `--no-materials` leaves them out — worth doing for pure coding work,
+startup. `--no-materials` leaves them out, worth doing for pure coding work,
 where a narrower tool surface is easier for the model.
 
 ## Development
