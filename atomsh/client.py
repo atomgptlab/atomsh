@@ -35,8 +35,9 @@ class AtomGPT:
     def models(self, tool_capable_only: bool = True) -> list:
         """List model ids served by the endpoint.
 
-        The mcp.* entries run the AtomGPT agent server-side and ignore any
-        tools sent by the client, so they are filtered out by default.
+        The mcp.* entries run the AtomGPT materials agent on the server and
+        do not make client-side tool calls, so they are filtered out by
+        default.
         """
         r = httpx.get(f"{self.base_url}/models", headers=self._headers,
                       timeout=30)

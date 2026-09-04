@@ -6,9 +6,8 @@ from pathlib import Path
 API_BASE = os.environ.get("ATOMSH_API_BASE", "https://atomgpt.org")
 API_URL = f"{API_BASE}/api"
 
-# OAuth (see my-open-webui custom_routes/mcp_oauth.py): the authorization
-# server hands back the user's existing atomgpt.org API key as the access
-# token, so one browser login yields a Bearer usable against /api.
+# atomgpt.org is the authorization server: one browser approval returns a
+# Bearer credential usable against /api, so there is no key to paste.
 MCP_URL = f"{API_BASE}/mcp/"
 
 AUTHORIZE_URL = f"{API_BASE}/oauth/authorize"
@@ -18,9 +17,9 @@ CLIENT_NAME = "atomsh"
 
 DEFAULT_MODEL = "gemma-4-26b"
 
-# The mcp.* models run the AtomGPT agent server-side and ignore any tools the
-# client sends (see atomgpt_agent.py — it reads only `model` and `messages`).
-# A coding agent needs client-side tool calls, so they are not selectable.
+# The mcp.* models run the AtomGPT materials agent on the server and answer in
+# prose; tools sent by a client are not used. A coding agent needs client-side
+# tool calls, so those models are not selectable here.
 SERVER_SIDE_AGENT_PREFIX = "mcp."
 
 REQUEST_TIMEOUT = 300

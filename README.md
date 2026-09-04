@@ -59,9 +59,9 @@ prompts, even after `a`.
 ## Models
 
 `atomsh models` lists what your account can use. The `mcp.*` models are
-excluded on purpose: those run the AtomGPT materials agent server-side and
-ignore client-supplied tools, so they cannot drive a coding loop. Use them
-through a chat client instead.
+excluded on purpose: those run the AtomGPT materials agent on the server and
+answer in prose rather than making tool calls, so they cannot drive a coding
+loop. Use them through a chat client instead.
 
 ## Tools
 
@@ -96,9 +96,8 @@ ATOMSH_API_KEY=sk-… atomsh --readonly "what does this repo do?"
 
 `ATOMSH_API_BASE` points the client at a different deployment.
 
-The copy of `install.sh` served at `atomgpt.org/install` lives in the
-my-open-webui repo under `backend/open_webui/custom_static/install.sh`; this
-file is the canonical source.
+`install.sh` here is the canonical installer; `atomgpt.org/install` serves a
+copy of it.
 
 ## License
 

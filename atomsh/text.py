@@ -1,9 +1,8 @@
 """Cleanup for raw model output.
 
 The chat models served by atomgpt.org sometimes emit channel control markers
-(`<|channel>thought`, `<channel|>`, `<|end|>` …) in their visible text. The
-server-side agent pipe strips these; the raw model endpoint does not, so a
-direct client has to do it itself.
+(`<|channel>thought`, `<channel|>`, `<|end|>` …) in their visible text. They
+are not filtered on the way out, so a client has to strip them itself.
 """
 
 import re
