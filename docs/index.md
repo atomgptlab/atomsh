@@ -34,7 +34,7 @@ atomsh
 ## What it looks like
 
 ```text
-atomsh v2026.9.1, your autonomous coding agent for science
+atomsh v2026.9.2, your autonomous coding agent for science
 gemma-4-26b · /home/you/project · materials + code · /help for commands
 
 › calc.py crashes when you run it. Fix it and verify.
