@@ -23,11 +23,13 @@ class MCPClient:
     """Session against one MCP server."""
 
     def __init__(self, token: str, url: str, timeout: int = 300,
-                 client_name: str = "atomsh", client_version: str = "0.1.0"):
+                 client_name: str = "atomsh", client_version: str = None):
         self.token = token
         self.url = url
         self.timeout = timeout
         self.client_name = client_name
+        if client_version is None:
+            from . import __version__ as client_version
         self.client_version = client_version
         self.session_id = None
         self._tools = None

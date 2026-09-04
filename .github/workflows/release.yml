@@ -1,7 +1,7 @@
 name: release
 
 # Tag a release and this publishes it:
-#   git tag v0.1.0 && git push origin v0.1.0
+#   git tag v2026.9.1 && git push origin v2026.9.1
 #
 # Publishing uses PyPI trusted publishing, so no API token is stored here.
 # Configure it once at https://pypi.org/manage/project/atomsh/settings/publishing/

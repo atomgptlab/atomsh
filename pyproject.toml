@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "atomsh"
-version = "0.1.0"
+version = "2026.9.1"
 description = "Your autonomous coding agent for science"
 readme = "README.md"
 requires-python = ">=3.10"
