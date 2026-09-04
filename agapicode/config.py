@@ -33,3 +33,18 @@ CONFIG_DIR = _xdg("XDG_CONFIG_HOME", ".config") / "agapicode"
 DATA_DIR = _xdg("XDG_DATA_HOME", ".local/share") / "agapicode"
 AUTH_FILE = CONFIG_DIR / "auth.json"
 SESSION_DIR = DATA_DIR / "sessions"
+
+
+def workspace_root(start=None) -> Path:
+    """The directory the agent treats as its workspace.
+
+    A repository is the boundary that means something to the user, so if the
+    starting directory is inside a git checkout, its root wins. Launching from
+    a subdirectory otherwise makes most of the repo "outside the workspace",
+    which is friction without any safety benefit.
+    """
+    here = Path(start or Path.cwd()).resolve()
+    for candidate in (here, *here.parents):
+        if (candidate / ".git").exists():
+            return candidate
+    return here

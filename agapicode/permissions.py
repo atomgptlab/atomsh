@@ -54,7 +54,8 @@ class Permissions:
         if escapes:
             print("    ! this path is outside the workspace")
         try:
-            answer = input("  allow? [y]es / [n]o / [a]lways: ").strip().lower()
+            # Capital N marks the default: a bare Enter denies.
+            answer = input("  allow? [y]es / [N]o / [a]lways: ").strip().lower()
         except (EOFError, KeyboardInterrupt):
             print()
             return DENY, "user interrupted the approval prompt."

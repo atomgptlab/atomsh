@@ -1,13 +1,14 @@
 """Command-line entry point for agapicode."""
 
 import argparse
+import subprocess
 import sys
 from pathlib import Path
 
 from . import __version__, auth
 from .agent import Agent
 from .client import AtomGPT, AtomGPTError
-from .config import API_BASE, DEFAULT_MODEL
+from .config import API_BASE, DEFAULT_MODEL, workspace_root
 from .permissions import Permissions
 from .session import Session
 
@@ -17,7 +18,8 @@ RESET = "\033[0m"
 
 BANNER = f"""{BOLD}agapicode{RESET} {DIM}v{__version__} — powered by AtomGPT{RESET}"""
 
-REPL_HELP = """  /model <id>   switch model          /models   list models
+REPL_HELP = """  !<command>    run a shell command yourself, without the model
+  /model <id>   switch model          /models   list models
   /clear        start a fresh thread   /help     this message
   /exit         quit (or Ctrl-D)
 """
@@ -153,6 +155,9 @@ def run_repl(args, root: Path) -> int:
             else:
                 print(f"{DIM}model is {agent.model}{RESET}")
             continue
+        if line.startswith("!"):
+            _shell_escape(agent, line[1:].strip(), root)
+            continue
         if line.startswith("/"):
             print(f"{DIM}unknown command — /help for the list{RESET}")
             continue
@@ -164,6 +169,32 @@ def run_repl(args, root: Path) -> int:
         except AtomGPTError as e:
             print(f"{DIM}error:{RESET} {e}")
         print()
+
+
+def _shell_escape(agent, command: str, root) -> None:
+    """Run a command the user typed directly.
+
+    No approval prompt — they typed it — and no model round-trip. The result
+    is recorded in the conversation so the agent knows what just happened.
+    """
+    if not command:
+        return
+    try:
+        proc = subprocess.run(command, shell=True, cwd=str(root), text=True,
+                              stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    except (OSError, subprocess.SubprocessError) as e:
+        print(f"{DIM}could not run command: {e}{RESET}")
+        return
+    output = (proc.stdout or "").rstrip()
+    if output:
+        print(output)
+    if proc.returncode != 0:
+        print(f"{DIM}[exit {proc.returncode}]{RESET}")
+    agent.session.messages.append({
+        "role": "user",
+        "content": f"I ran this command myself:\n$ {command}\n{output[:4000]}",
+    })
+    agent.session.save()
 
 
 # ── argument parsing ─────────────────────────────────────────────────────────
@@ -238,7 +269,7 @@ def main(argv=None) -> int:
     args = build_parser().parse_args(argv)
     args.prompt = " ".join(args.prompt).strip()
 
-    root = Path.cwd()
+    root = workspace_root()
     if args.prompt:
         return run_once(args, root)
     if not sys.stdin.isatty():

@@ -27,7 +27,9 @@ install_with_uv() {
   local log
   log="$(mktemp)"
   say "Installing with uv…"
-  if ! uv tool install --force "$SOURCE" >"$log" 2>&1; then
+  # --reinstall matters when SOURCE is a local checkout: without it uv can
+  # serve a cached build for an unchanged version number.
+  if ! uv tool install --force --reinstall "$SOURCE" >"$log" 2>&1; then
     cat "$log" >&2
     rm -f "$log"
     return 1
