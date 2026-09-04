@@ -3,8 +3,13 @@
 **Your autonomous coding agent for science.**
 
 Atomsh reads and edits files, searches the codebase, and runs commands from
-your terminal — and it can look a material up while doing it. It runs on
-[AtomGPT](https://atomgpt.org) alone: one account, no other provider.
+your terminal — and it can look a material up while doing it.
+
+> **You need an account on [atomgpt.org](https://atomgpt.org).** That account
+> is the only credential Atomsh uses — there is no OpenAI or Anthropic key to
+> supply, and no other provider to configure. Sign up first, then install.
+
+Python 3.10 or newer. Linux and macOS; Windows via WSL.
 
 ## Install
 
@@ -18,13 +23,20 @@ isolated environment with a launcher in `~/.local/bin`. No sudo.
 
 ## Connect
 
+Sign in at [atomgpt.org](https://atomgpt.org) first if you have not already,
+then:
+
 ```sh
 atomsh login
 ```
 
-This opens atomgpt.org in your browser, you approve once, and the credential
-is stored `0600` in `~/.config/atomsh/auth.json`. On a headless machine use
-`atomsh login --key` and paste an API key instead.
+This opens atomgpt.org in your browser and starts a one-request listener on
+`127.0.0.1`; you approve once, and the credential comes back to your machine
+and is stored `0600` in `~/.config/atomsh/auth.json`. Nothing is sent anywhere
+else. On a headless machine use `atomsh login --key` and paste an API key from
+Settings → Account → API Keys instead.
+
+`atomsh whoami` checks the stored credential; `atomsh logout` forgets it.
 
 ## Use
 
