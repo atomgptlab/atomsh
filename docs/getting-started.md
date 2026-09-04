@@ -62,18 +62,19 @@ PKCE, which stops an intercepted code from being redeemed by anyone else.
 
 ### On a remote machine
 
-Over SSH, on a cluster login node, or anywhere the browser runs somewhere
-else, the loopback flow cannot complete: the redirect lands on the browser
-machine's own `127.0.0.1`, not on the host running Atomsh. Approving works and
-nothing arrives.
+Over SSH or on a cluster login node the browser runs on a different computer,
+so the redirect lands on *its* `127.0.0.1`, not on the host running Atomsh.
+Nothing can arrive at the listener, because the listener is somewhere else.
 
-```sh
-atomsh login --manual
-```
+`atomsh login` handles this without a flag. It waits for the redirect and
+accepts a pasted address at the same time, whichever comes first. Approve in a
+browser anywhere, let the `127.0.0.1` page fail to load, and paste its full
+address into the terminal. The code is in it.
 
-Approve in a browser anywhere, let the `127.0.0.1` page fail to load, then
-paste that address back into the terminal. The code is in it, and no listener
-is needed. Atomsh detects an SSH session and points this out before you start.
+Locally there is nothing to do: the listener catches the redirect and the
+prompt disappears by itself.
+
+`atomsh login --manual` skips the listener entirely, which is rarely needed.
 
 If you would rather not use a browser at all:
 

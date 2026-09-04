@@ -49,10 +49,11 @@ and is stored `0600` in `~/.config/atomsh/auth.json`. Nothing is sent anywhere
 else. On a headless machine use `atomsh login --key` and paste an API key from
 Settings → Account → API Keys instead.
 
-On a remote host such as a cluster login node, use `atomsh login --manual`:
-approve in a browser anywhere and paste the redirect address back, since the
-browser's `127.0.0.1` is not the machine running Atomsh. `atomsh login --key`
-skips the browser entirely.
+On a remote host such as a cluster login node the browser is on another
+computer, so its `127.0.0.1` is not this machine and the redirect cannot
+arrive. Login accepts a pasted address for exactly this reason: approve in a
+browser anywhere, then paste the failed page's address at the prompt. No flag
+needed. `atomsh login --key` skips the browser entirely.
 
 `atomsh whoami` checks the stored credential; `atomsh logout` forgets it.
 

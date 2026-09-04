@@ -14,8 +14,11 @@ import hashlib
 import json
 import os
 import secrets
+import select
 import socket
+import sys
 import threading
+import time
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
@@ -218,6 +221,33 @@ def login_manual(timeout: int = 300) -> str:
     return token
 
 
+def _await_paste(delivered: threading.Event, timeout: int):
+    """Read a pasted line, unless the listener gets there first.
+
+    input() cannot be cancelled, so stdin is polled instead: the moment the
+    redirect lands on the local listener the prompt gives up and the browser
+    path wins, with nothing for the user to do.
+    """
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        if delivered.is_set():
+            return None
+        try:
+            ready, _, _ = select.select([sys.stdin], [], [], 0.25)
+        except (OSError, ValueError):
+            delivered.wait(max(0, deadline - time.time()))
+            return None
+        if ready:
+            line = sys.stdin.readline()
+            if not line:          # EOF, fall back to waiting on the listener
+                delivered.wait(max(0, deadline - time.time()))
+                return None
+            line = line.strip()
+            if line:
+                return line
+    return None
+
+
 def login_oauth(open_browser: bool = True, timeout: int = 300) -> str:
     """Run the browser login and return the access token.
 
@@ -232,6 +262,18 @@ def login_oauth(open_browser: bool = True, timeout: int = 300) -> str:
     server.timeout = timeout
     _CallbackHandler.result = None
 
+    delivered = threading.Event()
+
+    def serve():
+        try:
+            server.handle_request()
+        except OSError:
+            pass
+        finally:
+            delivered.set()
+
+    threading.Thread(target=serve, daemon=True).start()
+
     print("Open this URL to authorize atomsh:\n")
     print(f"  {url}\n")
     if open_browser:
@@ -239,18 +281,40 @@ def login_oauth(open_browser: bool = True, timeout: int = 300) -> str:
         # seconds, and the callback listener should already be waiting.
         threading.Thread(target=open_url, args=(url,), daemon=True).start()
         print("Trying to open it in your browser…")
-    print(f"Waiting for authorization (Ctrl-C to cancel, {timeout}s timeout).")
 
-    server.handle_request()  # blocks until the redirect arrives or times out
+    # Two ways in, whichever arrives first. The listener catches the redirect
+    # when the browser is on this machine. When it is not, its 127.0.0.1 is a
+    # different computer and nothing can arrive here, so the address bar is
+    # the delivery mechanism and pasting it back finishes the job.
+    can_paste = sys.stdin.isatty()
+    if can_paste:
+        print("\nWaiting for the browser. If it is on another machine, the "
+              "127.0.0.1\npage will fail to load: paste its full address "
+              "here instead.\n")
+        pasted = _await_paste(delivered, timeout)
+    else:
+        print(f"Waiting for authorization (Ctrl-C to cancel, {timeout}s).")
+        delivered.wait(timeout)
+        pasted = None
+
     server.server_close()
+
+    if pasted:
+        code, pasted_state = _code_from_input(pasted)
+        if not code:
+            raise AuthError("no authorization code found in that input")
+        if pasted_state and pasted_state != state:
+            raise AuthError("state mismatch, aborting")
+        token = _exchange(flow, code)
+        save_token(token)
+        return token
 
     result = _CallbackHandler.result
     if not result:
         raise AuthError(
-            "timed out waiting for the browser redirect. If the browser is on "
-            "a different machine, its 127.0.0.1 is not this one: run "
-            "`atomsh login --manual` and paste the address back, or "
-            "`atomsh login --key`"
+            "timed out waiting for authorization. If the browser is on a "
+            "different machine, paste the redirect address when prompted, or "
+            "use `atomsh login --key`"
         )
     if result.get("error"):
         raise AuthError(f"authorization denied: {result['error']}")

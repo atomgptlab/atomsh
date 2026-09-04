@@ -31,15 +31,11 @@ forwarding.
 
 ## Login approved, but nothing happened
 
-You are on a remote host. The redirect went to `127.0.0.1` on the machine
-running the browser, which is not the machine running Atomsh, so the code was
-delivered to a listener that does not exist there.
+You are on a remote host, and the redirect went to `127.0.0.1` on the machine
+running the browser rather than the machine running Atomsh.
 
-```sh
-atomsh login --manual
-```
-
-Approve anywhere, then paste the failed page's address back. Or use
+Paste the failed page's full address into the terminal at the prompt.
+`atomsh login` is listening for that as well as for the redirect. Or use
 `atomsh login --key` and paste an API key.
 
 ## `Not signed in`
