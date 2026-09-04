@@ -17,11 +17,11 @@ import secrets
 import socket
 import threading
 import urllib.parse
-import webbrowser
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 import httpx
 
+from .browser import open_url
 from .config import (
     API_URL,
     AUTHORIZE_URL,
@@ -165,10 +165,14 @@ def login_oauth(open_browser: bool = True, timeout: int = 300) -> str:
     server.timeout = timeout
     _CallbackHandler.result = None
 
-    print("Opening atomgpt.org to authorize agapicode.")
-    print(f"If your browser does not open, visit:\n  {url}\n")
+    print("Open this URL to authorize agapicode:\n")
+    print(f"  {url}\n")
     if open_browser:
-        threading.Thread(target=webbrowser.open, args=(url,), daemon=True).start()
+        # In a thread: launching a Windows browser from WSL can block for
+        # seconds, and the callback listener should already be waiting.
+        threading.Thread(target=open_url, args=(url,), daemon=True).start()
+        print("Trying to open it in your browser…")
+    print(f"Waiting for authorization (Ctrl-C to cancel, {timeout}s timeout).")
 
     server.handle_request()  # blocks until the redirect arrives or times out
     server.server_close()
