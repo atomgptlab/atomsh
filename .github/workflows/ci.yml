@@ -8,18 +8,17 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        python: ["3.10", "3.11", "3.12", "3.13"]
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
         with:
-          python-version: ${{ matrix.python }}
+          python-version: "3.12"
 
+      # No --system: setup-uv has already created and activated a venv, and the
+      # runner's system Python is externally managed (PEP 668), so --system
+      # makes uv ignore the venv and then refuse to touch /usr.
       - name: Install
-        run: uv pip install --system -e .
+        run: uv pip install -e .
 
       - name: Import every module
         run: |

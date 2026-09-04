@@ -11,6 +11,8 @@ your terminal, and it can look a material up while doing it.
 
 Python 3.10 or newer. Linux and macOS; Windows via WSL.
 
+Full documentation: **<https://atomgptlab.github.io/atomsh>**
+
 ## Install
 
 ```sh
