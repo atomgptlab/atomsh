@@ -8,7 +8,8 @@ from pathlib import Path
 from . import __version__, auth
 from .agent import Agent
 from .client import AtomGPT, AtomGPTError
-from .config import API_BASE, DEFAULT_MODEL, workspace_root
+from .mcp import MCPClient, MCPError
+from .config import API_BASE, DEFAULT_MODEL, MCP_URL, workspace_root
 from .permissions import Permissions
 from .session import Session
 
@@ -97,7 +98,21 @@ def cmd_models(args) -> int:
 # ── agent surfaces ───────────────────────────────────────────────────────────
 
 def _build_agent(args, root: Path) -> Agent:
-    client = AtomGPT(_require_token())
+    token = _require_token()
+    client = AtomGPT(token)
+
+    remote = None
+    if args.materials:
+        remote = MCPClient(token, MCP_URL, client_version=__version__)
+        try:
+            names = [t["name"] for t in remote.list_tools()]
+        except MCPError as e:
+            print(f"{DIM}materials tools unavailable ({e}) — continuing "
+                  f"without them{RESET}")
+            remote = None
+        else:
+            print(f"{DIM}materials tools: {', '.join(names)}{RESET}")
+
     session = None
     if args.continue_:
         session = Session.latest(str(root))
@@ -107,7 +122,7 @@ def _build_agent(args, root: Path) -> Agent:
     return Agent(
         client, args.model, session,
         permissions=Permissions(mode, root), root=root,
-        color=not args.no_color,
+        color=not args.no_color, remote=remote,
     )
 
 
@@ -250,6 +265,9 @@ def build_parser() -> argparse.ArgumentParser:
                    help="Do not ask before writing files or running commands.")
     p.add_argument("--readonly", action="store_true",
                    help="Refuse all writes and shell commands.")
+    p.add_argument("--materials", action="store_true",
+                   help="Also load the AtomGPT materials tools (JARVIS, "
+                        "ALIGNN, band structures, XRD, folding).")
     p.add_argument("--no-color", action="store_true", help="Disable ANSI color.")
     p.add_argument("-V", "--version", action="version",
                    version=f"agapicode {__version__}")

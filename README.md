@@ -40,6 +40,7 @@ git diff | agapicode "review this"   # read a prompt from stdin
 | `-c, --continue` | Resume the most recent session for this directory |
 | `--yolo` | Do not ask before writing files or running commands |
 | `--readonly` | Refuse all writes and shell commands |
+| `--materials` | Also load the AtomGPT materials tools |
 
 Commands: `login`, `logout`, `whoami`, `models`.
 
@@ -61,6 +62,23 @@ through a chat client instead.
 
 `read_file`, `write_file`, `edit_file`, `list_dir`, `glob_files`,
 `grep_files`, `bash`.
+
+### Materials tools
+
+`--materials` connects to the AtomGPT MCP server with the same credential and
+adds six more: `explore`, `build`, `predict`, `characterize`, `apply`,
+`validate`. Each dispatches to a family of AtomGPT apps — JARVIS-DFT lookups,
+ALIGNN predictions, band structures, XRD, interfaces, protein folding — so the
+agent can look a material up instead of answering from the model's memory:
+
+```
+$ agapicode --materials "bandgap of silicon JVASP-1002 from JARVIS-DFT"
+  · explore(app=/jarvis_dft/query, params={"jid": "JVASP-1002"})
+OptB88vdW 0.731 eV · mBJ 1.277 eV · HSE 1.22 eV
+```
+
+They are off by default: the extra tool surface makes plain coding tasks
+harder for the model.
 
 ## Development
 

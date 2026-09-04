@@ -19,17 +19,28 @@ class Agent:
 
     def __init__(self, client: AtomGPT, model: str, session,
                  permissions: Permissions = None, root: Path = None,
-                 color: bool = True):
+                 color: bool = True, remote=None):
         self.client = client
         self.model = model
         self.session = session
         self.root = root or Path.cwd()
         self.permissions = permissions or Permissions("ask", self.root)
         self.color = color
+        # An MCPClient, when --materials is on. Its tools sit alongside the
+        # local ones; the model does not need to know which is which.
+        self.remote = remote
+        self.remote_tools = set()
+        self.tool_schema = list(toolkit.SCHEMA)
+        if remote is not None:
+            remote_schema = remote.schema()
+            self.remote_tools = {t["function"]["name"] for t in remote_schema}
+            self.tool_schema += remote_schema
         if not self.session.messages:
-            self.session.messages.append(
-                {"role": "system", "content": system_prompt(str(self.root))}
-            )
+            self.session.messages.append({
+                "role": "system",
+                "content": system_prompt(str(self.root),
+                                         materials=remote is not None),
+            })
 
     def _dim(self, text: str) -> str:
         return f"{DIM}{text}{RESET}" if self.color else text
@@ -53,7 +64,7 @@ class Agent:
 
             try:
                 result = self.client.stream(
-                    self.session.messages, toolkit.SCHEMA, self.model,
+                    self.session.messages, self.tool_schema, self.model,
                     on_text=on_text,
                 )
             except AtomGPTError as e:
@@ -90,7 +101,7 @@ class Agent:
             args = {}
 
         handler = toolkit.HANDLERS.get(name)
-        if handler is None:
+        if handler is None and name not in self.remote_tools:
             return self._reply(call, f"Error: no such tool {name!r}.")
 
         decision, reason = self.permissions.check(name, args)
@@ -100,7 +111,10 @@ class Agent:
 
         print(self._dim(f"  · {name}({self._summarize(args)})"))
         try:
-            output = handler(self.root, **args)
+            if handler is None:
+                output = self.remote.call(name, args)
+            else:
+                output = handler(self.root, **args)
         except TypeError as e:
             output = f"Error: bad arguments for {name}: {e}"
         except Exception as e:  # a tool must never kill the session

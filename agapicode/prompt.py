@@ -29,10 +29,23 @@ Working directory: {cwd}
 Platform: {platform}
 """
 
+MATERIALS_NOTE = """
+# Materials tools
+You also have the AtomGPT materials tools: explore, build, predict,
+characterize, apply, validate. Each dispatches to a family of AtomGPT apps —
+call one with no arguments to list its apps, with `app="/path"` to see that
+app's parameters, and with arguments to run it.
 
-def system_prompt(cwd: str = None) -> str:
+Use them for any question about materials, structures, or their properties —
+JARVIS-DFT lookups, ALIGNN predictions, band structures, XRD, interfaces,
+protein folding. Do not answer such questions from memory: look them up.
+"""
+
+
+def system_prompt(cwd: str = None, materials: bool = False) -> str:
     """Render the system prompt for the current environment."""
-    return SYSTEM_PROMPT.format(
+    text = SYSTEM_PROMPT.format(
         cwd=cwd or os.getcwd(),
         platform=f"{platform.system()} {platform.release()}",
     )
+    return text + MATERIALS_NOTE if materials else text

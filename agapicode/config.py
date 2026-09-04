@@ -9,6 +9,8 @@ API_URL = f"{API_BASE}/api"
 # OAuth (see my-open-webui custom_routes/mcp_oauth.py): the authorization
 # server hands back the user's existing atomgpt.org API key as the access
 # token, so one browser login yields a Bearer usable against /api.
+MCP_URL = f"{API_BASE}/mcp/"
+
 AUTHORIZE_URL = f"{API_BASE}/oauth/authorize"
 TOKEN_URL = f"{API_BASE}/oauth/token"
 REGISTER_URL = f"{API_BASE}/oauth/register"
