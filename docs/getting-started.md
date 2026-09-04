@@ -104,8 +104,29 @@ flag; it will ask before each write or command.
 
 ## Upgrading
 
+Re-running the installer is the one instruction that works everywhere. It
+finds the existing install and upgrades it in place, whether that was a uv
+tool environment or the virtualenv fallback:
+
+```sh
+curl -fsSL https://atomgpt.org/install | bash
+```
+
+If you installed with uv or pipx directly, use those instead:
+
 ```sh
 uv tool upgrade atomsh
 ```
 
-Or run the installer again, which upgrades in place.
+```sh
+pipx upgrade atomsh
+```
+
+Check what you got with `atomsh --version`.
+
+To run an unreleased commit, point the installer at the repository:
+
+```sh
+curl -fsSL https://atomgpt.org/install | \
+  ATOMSH_SOURCE="git+https://github.com/atomgptlab/atomsh.git" bash
+```

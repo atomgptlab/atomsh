@@ -24,6 +24,16 @@ The installer uses `uv` when it is present, falls back to a virtualenv, and
 bootstraps `uv` if the system Python is unusable. Everything lands in an
 isolated environment with a launcher in `~/.local/bin`. No sudo.
 
+## Update
+
+```sh
+curl -fsSL https://atomgpt.org/install | bash
+```
+
+Re-running the installer upgrades in place, whichever way it installed
+originally. If you installed with uv or pipx directly, `uv tool upgrade atomsh`
+and `pipx upgrade atomsh` work too.
+
 ## Connect
 
 Sign in at [atomgpt.org](https://atomgpt.org) first if you have not already,
