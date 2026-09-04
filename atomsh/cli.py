@@ -288,7 +288,10 @@ def _render_history(agent, turns: int = 5, width: int = 500) -> None:
     for message in messages:
         role, content = message.get("role"), message.get("content") or ""
         if role == "user":
-            text = content if len(content) <= width else content[:width] + "…"
+            # width is None when /history asks for the whole conversation.
+            text = content
+            if width is not None and len(text) > width:
+                text = text[:width] + "…"
             print(f"{BOLD}›{RESET} {text}")
         elif role == "assistant":
             for call in message.get("tool_calls") or []:
