@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agapicode"
+version = "0.1.0"
+description = "A coding agent powered by AtomGPT"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+authors = [{ name = "Kamal Choudhary", email = "kchoudh2@jhu.edu" }]
+keywords = ["agent", "cli", "coding-assistant", "atomgpt"]
+dependencies = ["httpx>=0.24"]
+
+[project.urls]
+Homepage = "https://atomgpt.org"
+Repository = "https://github.com/atomgptlab/agapicode"
+
+[project.scripts]
+agapicode = "agapicode.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["agapicode*"]
