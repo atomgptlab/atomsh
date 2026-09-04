@@ -7,6 +7,8 @@ so `--materials` costs the user nothing extra to set up.
 """
 
 import json
+import time
+from pathlib import Path
 
 import httpx
 
@@ -119,6 +121,32 @@ class MCPClient:
                 },
             })
         return out
+
+    def cached_schema(self, cache_path, max_age: int = 24 * 3600) -> list:
+        """Tool definitions, from disk when they are recent enough.
+
+        Startup should not pay a network round-trip for a list that changes
+        when apps are added. A stale cache is refreshed on the next start; a
+        wrong one costs at most one rejected tool call, which the model
+        recovers from.
+        """
+        cache = Path(cache_path)
+        try:
+            if time.time() - cache.stat().st_mtime < max_age:
+                cached = json.loads(cache.read_text(encoding="utf-8"))
+                if cached:
+                    self._tools = cached
+                    return self.schema()
+        except (OSError, ValueError):
+            pass
+
+        schema = self.schema()          # network path; populates self._tools
+        try:
+            cache.parent.mkdir(parents=True, exist_ok=True)
+            cache.write_text(json.dumps(self._tools), encoding="utf-8")
+        except OSError:
+            pass
+        return schema
 
     def call(self, name: str, arguments: dict) -> str:
         """Run a tool and flatten its result to text for the model."""

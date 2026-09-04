@@ -36,6 +36,11 @@ DATA_DIR = _xdg("XDG_DATA_HOME", ".local/share") / "agapicode"
 AUTH_FILE = CONFIG_DIR / "auth.json"
 SESSION_DIR = DATA_DIR / "sessions"
 
+# The materials tool list changes rarely, so it is cached rather than fetched
+# on every start. The MCP session itself is opened lazily, on first use.
+MCP_TOOLS_CACHE = DATA_DIR / "mcp-tools.json"
+MCP_CACHE_TTL = 24 * 3600
+
 
 def workspace_root(start=None) -> Path:
     """The directory the agent treats as its workspace.
