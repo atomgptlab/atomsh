@@ -7,7 +7,12 @@ title: Getting started
 ## Requirements
 
 An account on [atomgpt.org](https://atomgpt.org), and Python 3.10 or newer.
-Linux and macOS work directly; on Windows use WSL.
+
+Atomsh is tested on Linux and on Windows through WSL2. macOS is expected to
+work, since the installer avoids GNU-only tools and the code uses nothing
+Linux-specific, but it has not been run there yet; reports welcome. Native
+Windows is not supported, because the installer is a shell script and the
+terminal handling assumes a POSIX tty.
 
 You do not need an OpenAI or Anthropic key. Atomsh talks only to atomgpt.org.
 
@@ -22,13 +27,18 @@ virtualenv, and bootstraps uv if the system Python has no working pip. It
 installs into an isolated environment and links a launcher into
 `~/.local/bin`. No sudo, nothing system-wide.
 
-If you already use uv or pipx:
+If you already use uv or pipx, install it directly from PyPI:
 
 ```sh
 uv tool install atomsh
-# or
+```
+
+```sh
 pipx install atomsh
 ```
+
+Both work anywhere Python does, including macOS, and skip the shell installer
+entirely.
 
 If `~/.local/bin` is not on your PATH, the installer says so and prints the
 line to add.

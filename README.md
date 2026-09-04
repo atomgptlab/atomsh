@@ -9,7 +9,8 @@ your terminal, and it can look a material up while doing it.
 > is the only credential Atomsh uses. There is no OpenAI or Anthropic key to
 > supply, and no other provider to configure. Sign up first, then install.
 
-Python 3.10 or newer. Linux and macOS; Windows via WSL.
+Python 3.10 or newer. Tested on Linux and WSL2; macOS should work.
+Windows needs WSL.
 
 Full documentation: **<https://atomgptlab.github.io/atomsh>**
 
