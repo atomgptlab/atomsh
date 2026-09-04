@@ -47,7 +47,7 @@ class AtomGPT:
         return sorted(i for i in ids if i)
 
     def stream(self, messages: list, tools: list = None, model: str = None,
-               on_text=None) -> dict:
+               on_text=None, cancelled=None) -> dict:
         """Run one completion and return the assembled assistant message.
 
         `on_text` is called with each text delta as it arrives, so the caller
@@ -78,6 +78,9 @@ class AtomGPT:
                         f"{r.status_code} from {self.base_url}: {r.text[:400]}"
                     )
                 for line in r.iter_lines():
+                    if cancelled is not None and cancelled.is_set():
+                        finish_reason = "cancelled"
+                        break
                     if not line or not line.startswith("data:"):
                         continue
                     payload = line[5:].strip()
@@ -112,6 +115,11 @@ class AtomGPT:
                 on_text(tail)
 
         message = {"role": "assistant", "content": "".join(text_parts) or None}
+        if finish_reason == "cancelled":
+            # Tool calls are dropped: an assistant message carrying calls that
+            # never get results makes the next request invalid.
+            message["content"] = message["content"] or "(interrupted)"
+            return {"message": message, "finish_reason": "cancelled"}
         if tool_calls:
             message["tool_calls"] = [
                 tool_calls[i] for i in sorted(tool_calls)

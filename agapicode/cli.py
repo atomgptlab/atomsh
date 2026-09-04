@@ -1,6 +1,7 @@
 """Command-line entry point for agapicode."""
 
 import argparse
+import select
 import subprocess
 import sys
 from pathlib import Path
@@ -21,6 +22,7 @@ RESET = "\033[0m"
 BANNER = f"""{BOLD}agapicode{RESET} {DIM}v{__version__} — powered by AtomGPT{RESET}"""
 
 REPL_HELP = """  !<command>    run a shell command yourself, without the model
+  /history      replay this conversation in full
   /model <id>   switch model          /models   list models
   /clear        start a fresh thread   /help     this message
   /exit         quit (or Ctrl-D)
@@ -133,18 +135,26 @@ def run_once(args, root: Path) -> int:
 
 def run_repl(args, root: Path) -> int:
     try:
-        import readline  # noqa: F401 — enables line editing and history
-    except ImportError:
+        import readline
+
+        # Without this, every line of a pasted block is submitted as its own
+        # prompt — a 40-line paste becomes 40 model calls. Requires GNU
+        # readline 8.1+; harmless where it is not supported, which is what
+        # _read_input's coalescing covers.
+        readline.parse_and_bind("set enable-bracketed-paste on")
+    except (ImportError, OSError):
         pass
 
     agent = _build_agent(args, root)
     print(BANNER)
     surface = "materials + code" if agent.remote else "code"
     print(f"{DIM}{args.model} · {root} · {surface} · /help for commands{RESET}\n")
+    if args.continue_ and len(agent.session.messages) > 1:
+        _render_history(agent)
 
     while True:
         try:
-            line = input(f"{BOLD}›{RESET} ").strip()
+            line = _read_input(f"{BOLD}›{RESET} ")
         except (EOFError, KeyboardInterrupt):
             print()
             return 0
@@ -164,6 +174,9 @@ def run_repl(args, root: Path) -> int:
         # a mistyped "/models <id>" silently switch the model.
         parts = line.split(maxsplit=1)
         verb, rest = parts[0], (parts[1].strip() if len(parts) == 2 else "")
+        if verb == "/history":
+            _render_history(agent, turns=None, width=None)
+            continue
         if verb == "/models":
             cmd_models(args)
             continue
@@ -217,6 +230,68 @@ def _shell_escape(agent, command: str, root) -> None:
         "content": f"I ran this command myself:\n$ {command}\n{output[:4000]}",
     })
     agent.session.save()
+
+
+def _read_input(prompt: str) -> str:
+    """Read one prompt, treating a pasted block as a single input.
+
+    Bracketed paste handles this in the terminal when readline supports it.
+    Where it does not, the give-away is timing: the rest of a paste is already
+    sitting in the buffer the instant the first line is read, which no human
+    typist can reproduce.
+    """
+    first = input(prompt)
+    lines = [first]
+    try:
+        while select.select([sys.stdin], [], [], 0.01)[0]:
+            more = sys.stdin.readline()
+            if not more:
+                break
+            lines.append(more.rstrip("\n"))
+    except (OSError, ValueError):
+        pass
+    if len(lines) > 1:
+        print(f"{DIM}  ({len(lines)} lines pasted — sending as one "
+              f"prompt){RESET}")
+    return "\n".join(lines).strip()
+
+
+def _render_history(agent, turns: int = 5, width: int = 500) -> None:
+    """Replay a resumed conversation so the prompt is not a blank slate.
+
+    Assistant answers are clipped: the point is to remind you where you were,
+    not to reprint a thousand-line LAMMPS script. The full text is still in
+    the model's context either way.
+    """
+    messages = [m for m in agent.session.messages if m.get("role") != "system"]
+    if not messages:
+        return
+
+    starts = [i for i, m in enumerate(messages) if m.get("role") == "user"]
+    clipped = turns is not None and len(starts) > turns
+    if clipped:
+        messages = messages[starts[-turns]:]
+
+    exchanges = len(starts)
+    note = f" (last {turns} of {exchanges})" if clipped else ""
+    print(f"{DIM}── resumed {agent.session.id} · {exchanges} exchanges"
+          f"{note} ──{RESET}\n")
+
+    for message in messages:
+        role, content = message.get("role"), message.get("content") or ""
+        if role == "user":
+            text = content if len(content) <= width else content[:width] + "…"
+            print(f"{BOLD}›{RESET} {text}")
+        elif role == "assistant":
+            for call in message.get("tool_calls") or []:
+                name = (call.get("function") or {}).get("name", "?")
+                print(f"{DIM}  · {name}(…){RESET}")
+            if content:
+                if width is not None and len(content) > width:
+                    content = content[:width] + f"{DIM}… [clipped]{RESET}"
+                print(content)
+                print()
+    print(f"{DIM}{'─' * 40}{RESET}\n")
 
 
 # ── argument parsing ─────────────────────────────────────────────────────────

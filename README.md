@@ -44,6 +44,10 @@ git diff | agapicode "review this"   # read a prompt from stdin
 
 Commands: `login`, `logout`, `whoami`, `models`.
 
+In a session: `!<command>` runs a shell command yourself, `/history` replays
+the conversation, `/model` switches model, `/clear` starts a fresh thread.
+**Escape** interrupts a response while it is streaming.
+
 ## Permissions
 
 By default agapicode asks before anything that writes a file or runs a

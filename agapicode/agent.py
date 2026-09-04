@@ -6,6 +6,7 @@ from pathlib import Path
 from . import tools as toolkit
 from .client import AtomGPT, AtomGPTError
 from .config import MAX_STEPS
+from .interrupt import escape_watch
 from .permissions import ALLOW, Permissions
 from .prompt import system_prompt
 
@@ -63,10 +64,11 @@ class Agent:
                 print(piece, end="", flush=True)
 
             try:
-                result = self.client.stream(
-                    self.session.messages, self.tool_schema, self.model,
-                    on_text=on_text,
-                )
+                with escape_watch() as cancelled:
+                    result = self.client.stream(
+                        self.session.messages, self.tool_schema, self.model,
+                        on_text=on_text, cancelled=cancelled,
+                    )
             except AtomGPTError as e:
                 print(f"\n{self._dim('error:')} {e}")
                 return ""
@@ -76,6 +78,10 @@ class Agent:
                 print()
             self.session.messages.append(message)
             self.session.save()
+
+            if result.get("finish_reason") == "cancelled":
+                print(self._dim("  interrupted"))
+                return message.get("content") or ""
 
             calls = message.get("tool_calls")
             if not calls:
