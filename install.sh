@@ -102,15 +102,54 @@ LAUNCHER="$BIN_DIR/atomsh"
 say ""
 say "Installed $("$LAUNCHER" --version 2>/dev/null || echo atomsh) → $LAUNCHER"
 
+# Put the launcher on PATH. Printing the instruction and leaving it to the
+# reader does not work: the usual outcome is `atomsh: command not found`
+# followed by sourcing an rc file that was never edited. Set
+# ATOMSH_NO_MODIFY_PATH=1 to be told instead of helped.
+add_to_path() {
+  local line="export PATH=\"$BIN_DIR:\$PATH\""
+  local edited=""
+
+  for rc in "$HOME/.bashrc" "$HOME/.zshrc" "$HOME/.profile"; do
+    [ -f "$rc" ] || continue
+    if grep -qF "$BIN_DIR" "$rc" 2>/dev/null; then
+      edited="$edited $rc(already)"
+      continue
+    fi
+    printf '\n# added by the atomsh installer\n%s\n' "$line" >> "$rc" \
+      && edited="$edited $rc"
+  done
+
+  if [ -z "$edited" ]; then
+    # No rc file existed; create the one the login shell will read.
+    printf '\n# added by the atomsh installer\n%s\n' "$line" >> "$HOME/.profile"
+    edited=" $HOME/.profile"
+  fi
+  printf '%s' "$edited"
+}
+
 case ":$PATH:" in
-  *":$BIN_DIR:"*) ;;
-  *) warn ""
-     warn "$BIN_DIR is not on your PATH. Add it with:"
-     warn "  echo 'export PATH=\"$BIN_DIR:\$PATH\"' >> ~/.bashrc && exec bash"
-     ;;
+  *":$BIN_DIR:"*)
+    ON_PATH=yes
+    ;;
+  *)
+    ON_PATH=no
+    if [ "${ATOMSH_NO_MODIFY_PATH:-0}" = "1" ]; then
+      warn ""
+      warn "$BIN_DIR is not on your PATH. Add it with:"
+      warn "  echo 'export PATH=\"$BIN_DIR:\$PATH\"' >> ~/.bashrc"
+    else
+      touched="$(add_to_path)"
+      say ""
+      say "Added $BIN_DIR to your PATH in:$touched"
+    fi
+    ;;
 esac
 
 say ""
 say "Next:"
+if [ "$ON_PATH" = "no" ]; then
+  say "  export PATH=\"$BIN_DIR:\$PATH\"    # this shell only, once"
+fi
 say "  atomsh login     connect your atomgpt.org account"
 say "  atomsh           start coding"

@@ -4,15 +4,21 @@ title: Troubleshooting
 
 # Troubleshooting
 
-## `atomsh: command not found`
+## `atomsh: command not found` right after installing
 
-The launcher is in `~/.local/bin`, which is not on your PATH. Add it:
+The launcher lives in `~/.local/bin`. The installer adds that directory to
+your shell startup file, but an already-open shell does not pick it up. Either
+open a new terminal, or apply it to this one:
 
 ```sh
-echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc && exec bash
+export PATH="$HOME/.local/bin:$PATH"
 ```
 
-The installer prints this when it detects the problem.
+Sourcing `~/.bashrc` is not always enough, since many distributions return
+early from it in a non-interactive context.
+
+To install without the installer touching any startup file, set
+`ATOMSH_NO_MODIFY_PATH=1`; it will print the line for you to add yourself.
 
 ## The browser does not open during login
 

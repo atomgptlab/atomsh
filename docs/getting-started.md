@@ -40,8 +40,10 @@ pipx install atomsh
 Both work anywhere Python does, including macOS, and skip the shell installer
 entirely.
 
-If `~/.local/bin` is not on your PATH, the installer says so and prints the
-line to add.
+If `~/.local/bin` is not already on your PATH, the installer adds it to your
+shell startup file and prints the one-line `export` to apply it to the shell
+you are in, so you do not have to open a new terminal. Set
+`ATOMSH_NO_MODIFY_PATH=1` to be told rather than helped.
 
 ## Connect
 
