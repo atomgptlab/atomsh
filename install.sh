@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
-# agapicode installer —  curl -fsSL https://atomgpt.org/install | bash
+# atomsh installer —  curl -fsSL https://atomgpt.org/install | bash
 #
-# Installs the agapicode CLI in an isolated environment and puts the launcher
+# Installs the atomsh CLI in an isolated environment and puts the launcher
 # on your PATH. Nothing is installed system-wide; no sudo.
 #
 # Environment:
-#   AGAPICODE_SOURCE    package spec to install (default: agapicode)
-#   AGAPICODE_BIN_DIR   where to link the launcher (default: ~/.local/bin)
-#   AGAPICODE_HOME      venv location for the pip fallback (default: ~/.agapicode)
+#   ATOMSH_SOURCE    package spec to install (default: atomsh)
+#   ATOMSH_BIN_DIR   where to link the launcher (default: ~/.local/bin)
+#   ATOMSH_HOME      venv location for the pip fallback (default: ~/.atomsh)
 set -euo pipefail
 
-SOURCE="${AGAPICODE_SOURCE:-agapicode}"
-BIN_DIR="${AGAPICODE_BIN_DIR:-$HOME/.local/bin}"
-AGAPICODE_HOME="${AGAPICODE_HOME:-$HOME/.agapicode}"
+SOURCE="${ATOMSH_SOURCE:-atomsh}"
+BIN_DIR="${ATOMSH_BIN_DIR:-$HOME/.local/bin}"
+ATOMSH_HOME="${ATOMSH_HOME:-$HOME/.atomsh}"
 
 say()  { printf '%s\n' "$*"; }
 warn() { printf '\033[33m%s\033[0m\n' "$*" >&2; }
@@ -35,7 +35,7 @@ install_with_uv() {
     return 1
   fi
   rm -f "$log"
-  have agapicode || [ -x "$HOME/.local/bin/agapicode" ] || return 1
+  have atomsh || [ -x "$HOME/.local/bin/atomsh" ] || return 1
   return 0
 }
 
@@ -58,7 +58,7 @@ find_python() {
 install_with_venv() {
   local python venv
   python="$(find_python)" || return 1
-  venv="$AGAPICODE_HOME/venv"
+  venv="$ATOMSH_HOME/venv"
 
   say "Installing with $($python --version)…"
   [ -d "$venv" ] || "$python" -m venv "$venv" >/dev/null 2>&1 || return 1
@@ -68,7 +68,7 @@ install_with_venv() {
   "$venv/bin/python" -m pip install --quiet --upgrade "$SOURCE" || return 1
 
   mkdir -p "$BIN_DIR"
-  ln -sf "$venv/bin/agapicode" "$BIN_DIR/agapicode"
+  ln -sf "$venv/bin/atomsh" "$BIN_DIR/atomsh"
   return 0
 }
 
@@ -93,14 +93,14 @@ elif bootstrap_uv && install_with_uv; then
   installed=true
 fi
 
-$installed || die "could not install agapicode. Install uv (https://astral.sh/uv) and retry."
+$installed || die "could not install atomsh. Install uv (https://astral.sh/uv) and retry."
 
-LAUNCHER="$BIN_DIR/agapicode"
-[ -x "$LAUNCHER" ] || LAUNCHER="$(command -v agapicode || true)"
-[ -n "$LAUNCHER" ] || die "installed, but the agapicode launcher was not found."
+LAUNCHER="$BIN_DIR/atomsh"
+[ -x "$LAUNCHER" ] || LAUNCHER="$(command -v atomsh || true)"
+[ -n "$LAUNCHER" ] || die "installed, but the atomsh launcher was not found."
 
 say ""
-say "Installed $("$LAUNCHER" --version 2>/dev/null || echo agapicode) → $LAUNCHER"
+say "Installed $("$LAUNCHER" --version 2>/dev/null || echo atomsh) → $LAUNCHER"
 
 case ":$PATH:" in
   *":$BIN_DIR:"*) ;;
@@ -112,5 +112,5 @@ esac
 
 say ""
 say "Next:"
-say "  agapicode login     connect your atomgpt.org account"
-say "  agapicode           start coding"
+say "  atomsh login     connect your atomgpt.org account"
+say "  atomsh           start coding"

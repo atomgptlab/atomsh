@@ -3,22 +3,23 @@ requires = ["setuptools>=61"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "agapicode"
+name = "atomsh"
 version = "0.1.0"
-description = "A coding agent powered by AtomGPT"
+description = "Your autonomous coding agent for science"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "Apache-2.0" }
 authors = [{ name = "Kamal Choudhary", email = "kchoudh2@jhu.edu" }]
-keywords = ["agent", "cli", "coding-assistant", "atomgpt"]
+keywords = ["agent", "cli", "coding-assistant", "atomgpt",
+            "materials-science", "jarvis"]
 dependencies = ["httpx>=0.24"]
 
 [project.urls]
 Homepage = "https://atomgpt.org"
-Repository = "https://github.com/atomgptlab/agapicode"
+Repository = "https://github.com/atomgptlab/atomsh"
 
 [project.scripts]
-agapicode = "agapicode.cli:main"
+atomsh = "atomsh.cli:main"
 
 [tool.setuptools.packages.find]
-include = ["agapicode*"]
+include = ["atomsh*"]

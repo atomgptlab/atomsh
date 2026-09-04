@@ -29,7 +29,7 @@ class Permissions:
         if name not in MUTATING and not escapes:
             return ALLOW, ""
         if self.mode == "readonly":
-            return DENY, "agapicode is running in read-only mode."
+            return DENY, "atomsh is running in read-only mode."
         if self.mode == "auto":
             return ALLOW, ""
         if name in self.always and not escapes:
@@ -44,7 +44,7 @@ class Permissions:
 
     def _prompt(self, name: str, args: dict, escapes: bool):
         print()
-        print(f"  agapicode wants to run: {name}")
+        print(f"  atomsh wants to run: {name}")
         for key, value in args.items():
             rendered = value if isinstance(value, str) else json.dumps(value)
             if len(rendered) > 300:

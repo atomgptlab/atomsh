@@ -1,9 +1,9 @@
-"""Paths, endpoints and defaults for agapicode."""
+"""Paths, endpoints and defaults for atomsh."""
 
 import os
 from pathlib import Path
 
-API_BASE = os.environ.get("AGAPICODE_API_BASE", "https://atomgpt.org")
+API_BASE = os.environ.get("ATOMSH_API_BASE", "https://atomgpt.org")
 API_URL = f"{API_BASE}/api"
 
 # OAuth (see my-open-webui custom_routes/mcp_oauth.py): the authorization
@@ -14,7 +14,7 @@ MCP_URL = f"{API_BASE}/mcp/"
 AUTHORIZE_URL = f"{API_BASE}/oauth/authorize"
 TOKEN_URL = f"{API_BASE}/oauth/token"
 REGISTER_URL = f"{API_BASE}/oauth/register"
-CLIENT_NAME = "agapicode"
+CLIENT_NAME = "atomsh"
 
 DEFAULT_MODEL = "gemma-4-26b"
 
@@ -31,8 +31,8 @@ def _xdg(env_var: str, default: str) -> Path:
     return Path(os.environ.get(env_var) or Path.home() / default)
 
 
-CONFIG_DIR = _xdg("XDG_CONFIG_HOME", ".config") / "agapicode"
-DATA_DIR = _xdg("XDG_DATA_HOME", ".local/share") / "agapicode"
+CONFIG_DIR = _xdg("XDG_CONFIG_HOME", ".config") / "atomsh"
+DATA_DIR = _xdg("XDG_DATA_HOME", ".local/share") / "atomsh"
 AUTH_FILE = CONFIG_DIR / "auth.json"
 SESSION_DIR = DATA_DIR / "sessions"
 

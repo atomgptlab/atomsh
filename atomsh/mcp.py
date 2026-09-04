@@ -23,7 +23,7 @@ class MCPClient:
     """Session against one MCP server."""
 
     def __init__(self, token: str, url: str, timeout: int = 300,
-                 client_name: str = "agapicode", client_version: str = "0.1.0"):
+                 client_name: str = "atomsh", client_version: str = "0.1.0"):
         self.token = token
         self.url = url
         self.timeout = timeout

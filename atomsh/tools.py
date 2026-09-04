@@ -1,4 +1,4 @@
-"""The coding tools agapicode exposes to the model.
+"""The coding tools atomsh exposes to the model.
 
 Each tool returns a string — that is what goes back to the model as the tool
 result. Errors are returned as text rather than raised, so a bad path or a

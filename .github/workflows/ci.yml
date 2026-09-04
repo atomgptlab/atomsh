@@ -25,23 +25,23 @@ jobs:
         run: |
           python - <<'PY'
           import importlib, pkgutil
-          import agapicode
-          for m in pkgutil.iter_modules(agapicode.__path__):
-              importlib.import_module(f"agapicode.{m.name}")
+          import atomsh
+          for m in pkgutil.iter_modules(atomsh.__path__):
+              importlib.import_module(f"atomsh.{m.name}")
               print("ok", m.name)
           PY
 
       - name: CLI responds without credentials
         run: |
-          agapicode --version
-          agapicode --help > /dev/null
+          atomsh --version
+          atomsh --help > /dev/null
 
       - name: Offline behaviour is a clean error, not a traceback
         env:
-          AGAPICODE_API_BASE: http://127.0.0.1:1
-          AGAPICODE_API_KEY: sk-not-a-real-key
+          ATOMSH_API_BASE: http://127.0.0.1:1
+          ATOMSH_API_KEY: sk-not-a-real-key
         run: |
-          output="$(agapicode --no-materials "hello" 2>&1 || true)"
+          output="$(atomsh --no-materials "hello" 2>&1 || true)"
           echo "$output"
           echo "$output" | grep -qi "traceback" && { echo "unhandled exception"; exit 1; }
           exit 0

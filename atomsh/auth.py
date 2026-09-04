@@ -1,11 +1,11 @@
 """Authentication against atomgpt.org.
 
-The preferred flow is `agapicode login`: an OAuth 2.1 authorization-code
+The preferred flow is `atomsh login`: an OAuth 2.1 authorization-code
 exchange with PKCE against atomgpt.org, using a loopback redirect. The
 authorization server hands back the user's existing atomgpt.org API key as the
 access token, so the result is a Bearer credential usable against /api.
 
-`agapicode login --key` is the fallback for headless machines, where opening a
+`atomsh login --key` is the fallback for headless machines, where opening a
 browser is not possible.
 """
 
@@ -39,8 +39,8 @@ class AuthError(Exception):
 # ── stored credential ────────────────────────────────────────────────────────
 
 def load_token() -> str:
-    """Return the stored token, or None. AGAPICODE_API_KEY wins if set."""
-    env = os.environ.get("AGAPICODE_API_KEY")
+    """Return the stored token, or None. ATOMSH_API_KEY wins if set."""
+    env = os.environ.get("ATOMSH_API_KEY")
     if env:
         return env.strip()
     try:
@@ -108,7 +108,7 @@ class _CallbackHandler(BaseHTTPRequestHandler):
         _CallbackHandler.result = {k: v[0] for k, v in params.items()}
         ok = "code" in _CallbackHandler.result
         body = (
-            "<h2>agapicode is connected.</h2><p>You can close this tab.</p>"
+            "<h2>atomsh is connected.</h2><p>You can close this tab.</p>"
             if ok
             else "<h2>Authorization failed.</h2><p>Return to the terminal.</p>"
         )
@@ -165,7 +165,7 @@ def login_oauth(open_browser: bool = True, timeout: int = 300) -> str:
     server.timeout = timeout
     _CallbackHandler.result = None
 
-    print("Open this URL to authorize agapicode:\n")
+    print("Open this URL to authorize atomsh:\n")
     print(f"  {url}\n")
     if open_browser:
         # In a thread: launching a Windows browser from WSL can block for

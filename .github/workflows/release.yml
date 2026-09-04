@@ -4,8 +4,8 @@ name: release
 #   git tag v0.1.0 && git push origin v0.1.0
 #
 # Publishing uses PyPI trusted publishing, so no API token is stored here.
-# Configure it once at https://pypi.org/manage/project/agapicode/settings/publishing/
-# with owner atomgptlab, repository agapicode, workflow release.yml,
+# Configure it once at https://pypi.org/manage/project/atomsh/settings/publishing/
+# with owner atomgptlab, repository atomsh, workflow release.yml,
 # environment pypi.
 
 on:

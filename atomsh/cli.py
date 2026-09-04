@@ -1,4 +1,4 @@
-"""Command-line entry point for agapicode."""
+"""Command-line entry point for atomsh."""
 
 import argparse
 import select
@@ -19,7 +19,7 @@ BOLD = "\033[1m"
 DIM = "\033[2m"
 RESET = "\033[0m"
 
-BANNER = f"""{BOLD}agapicode{RESET} {DIM}v{__version__} — powered by AtomGPT{RESET}"""
+BANNER = f"""{BOLD}atomsh{RESET} {DIM}v{__version__} — your autonomous coding agent for science{RESET}"""
 
 REPL_HELP = """  !<command>    run a shell command yourself, without the model
   /history      replay this conversation in full
@@ -32,7 +32,7 @@ REPL_HELP = """  !<command>    run a shell command yourself, without the model
 def _require_token() -> str:
     token = auth.load_token()
     if not token:
-        print(f"Not signed in. Run {BOLD}agapicode login{RESET} to connect "
+        print(f"Not signed in. Run {BOLD}atomsh login{RESET} to connect "
               "your atomgpt.org account.")
         raise SystemExit(1)
     return token
@@ -55,7 +55,7 @@ def cmd_login(args) -> int:
             token = auth.login_oauth(open_browser=not args.no_browser)
         except auth.AuthError as e:
             print(f"Login failed: {e}")
-            print(f"On a headless machine, use {BOLD}agapicode login --key{RESET}.")
+            print(f"On a headless machine, use {BOLD}atomsh login --key{RESET}.")
             return 1
 
     try:
@@ -197,7 +197,7 @@ def run_repl(args, root: Path) -> int:
         try:
             agent.run(line)
         except SystemExit:
-            print(f"{DIM}not signed in — run `agapicode login` in another "
+            print(f"{DIM}not signed in — run `atomsh login` in another "
                   f"shell, then retry{RESET}")
         except KeyboardInterrupt:
             print(f"\n{DIM}interrupted{RESET}")
@@ -310,9 +310,9 @@ EPILOG = """commands:
   models                list available models
 
 examples:
-  agapicode                          start an interactive session
-  agapicode "fix the failing test"   run one prompt and exit
-  git diff | agapicode "review this"
+  atomsh                          start an interactive session
+  atomsh "fix the failing test"   run one prompt and exit
+  git diff | atomsh "review this"
 """
 
 
@@ -324,8 +324,8 @@ def build_parser() -> argparse.ArgumentParser:
     word of a prompt would be read as a command name.
     """
     p = argparse.ArgumentParser(
-        prog="agapicode",
-        description="A coding agent powered by AtomGPT (atomgpt.org).",
+        prog="atomsh",
+        description="Atomsh — your autonomous coding agent for science. Powered by AtomGPT (atomgpt.org).",
         epilog=EPILOG,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -348,12 +348,12 @@ def build_parser() -> argparse.ArgumentParser:
                         "loaded by default.")
     p.add_argument("--no-color", action="store_true", help="Disable ANSI color.")
     p.add_argument("-V", "--version", action="version",
-                   version=f"agapicode {__version__}")
+                   version=f"atomsh {__version__}")
     return p
 
 
 def build_command_parser(name: str) -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(prog=f"agapicode {name}")
+    p = argparse.ArgumentParser(prog=f"atomsh {name}")
     if name == "login":
         p.add_argument("--key", action="store_true",
                        help="Paste an API key instead of using the browser.")

@@ -1,4 +1,4 @@
-"""Conversation persistence, so `agapicode --continue` can pick up a thread."""
+"""Conversation persistence, so `atomsh --continue` can pick up a thread."""
 
 import json
 import time
