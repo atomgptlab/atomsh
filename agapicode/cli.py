@@ -81,11 +81,12 @@ def cmd_whoami(_args) -> int:
     return 0
 
 
-def cmd_models(_args) -> int:
+def cmd_models(args) -> int:
     client = AtomGPT(_require_token())
+    current = getattr(args, "model", None) or DEFAULT_MODEL
     try:
         for model in client.models():
-            marker = "  * " if model == DEFAULT_MODEL else "    "
+            marker = "  * " if model == current else "    "
             print(f"{marker}{model}")
     except Exception as e:
         print(f"Could not list models: {e}")
@@ -144,13 +145,16 @@ def run_repl(args, root: Path) -> int:
             agent = _build_agent(args, root)
             print(f"{DIM}new thread{RESET}")
             continue
-        if line == "/models":
+        # Split on the command word: matching "/model" as a prefix would make
+        # a mistyped "/models <id>" silently switch the model.
+        parts = line.split(maxsplit=1)
+        verb, rest = parts[0], (parts[1].strip() if len(parts) == 2 else "")
+        if verb == "/models":
             cmd_models(args)
             continue
-        if line.startswith("/model"):
-            parts = line.split(maxsplit=1)
-            if len(parts) == 2:
-                agent.model = args.model = parts[1].strip()
+        if verb == "/model":
+            if rest:
+                agent.model = args.model = rest
                 print(f"{DIM}model → {agent.model}{RESET}")
             else:
                 print(f"{DIM}model is {agent.model}{RESET}")
@@ -164,6 +168,9 @@ def run_repl(args, root: Path) -> int:
 
         try:
             agent.run(line)
+        except SystemExit:
+            print(f"{DIM}not signed in — run `agapicode login` in another "
+                  f"shell, then retry{RESET}")
         except KeyboardInterrupt:
             print(f"\n{DIM}interrupted{RESET}")
         except AtomGPTError as e:
@@ -236,7 +243,8 @@ def build_parser() -> argparse.ArgumentParser:
                    help="Prompt to run. Omit for an interactive session.")
     p.add_argument("-m", "--model", default=DEFAULT_MODEL,
                    help=f"Model to use (default: {DEFAULT_MODEL}).")
-    p.add_argument("-c", "--continue", dest="continue_", action="store_true",
+    p.add_argument("-c", "--continue", "--resume", dest="continue_",
+                   action="store_true",
                    help="Resume the most recent session for this directory.")
     p.add_argument("--yolo", action="store_true",
                    help="Do not ask before writing files or running commands.")
