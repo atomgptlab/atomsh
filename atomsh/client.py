@@ -1,6 +1,7 @@
 """Streaming chat client for the AtomGPT OpenAI-compatible endpoint."""
 
 import json
+import time
 
 import httpx
 
@@ -10,6 +11,22 @@ from .text import Scrubber
 
 class AtomGPTError(Exception):
     """The endpoint returned an error, or the stream broke mid-response."""
+
+
+class _Retryable(AtomGPTError):
+    """A failure worth waiting out: rate limiting, or a server hiccup."""
+
+    def __init__(self, message: str, retry_after: float = 0.0):
+        super().__init__(message)
+        self.retry_after = retry_after
+
+
+# Statuses that mean "not now" rather than "not ever". A rate limit in
+# particular is routine when several agents share one account, and losing a
+# task to it wastes far more than the wait would have.
+RETRY_STATUSES = {429, 500, 502, 503, 504}
+MAX_RETRIES = 5
+MAX_SLEEP = 60.0
 
 
 class AtomGPT:
@@ -48,8 +65,32 @@ class AtomGPT:
         return sorted(i for i in ids if i)
 
     def stream(self, messages: list, tools: list = None, model: str = None,
-               on_text=None, cancelled=None) -> dict:
-        """Run one completion and return the assembled assistant message.
+               on_text=None, cancelled=None, notify=None) -> dict:
+        """Run one completion, retrying transient failures.
+
+        Retries happen before any text has been emitted - the status is
+        checked before the body is streamed - so a retry can never duplicate
+        output the caller has already rendered.
+        """
+        delay = 2.0
+        for attempt in range(MAX_RETRIES + 1):
+            try:
+                return self._stream_once(messages, tools, model, on_text,
+                                         cancelled)
+            except _Retryable as e:
+                if attempt == MAX_RETRIES:
+                    raise AtomGPTError(f"{e} (gave up after "
+                                       f"{MAX_RETRIES} retries)") from e
+                wait = min(max(e.retry_after, delay), MAX_SLEEP)
+                if notify:
+                    notify(f"{e} — retrying in {wait:.0f}s")
+                time.sleep(wait)
+                delay *= 2
+        raise AtomGPTError("unreachable")
+
+    def _stream_once(self, messages: list, tools: list = None,
+                     model: str = None, on_text=None, cancelled=None) -> dict:
+        """One attempt: assemble the assistant message from the stream.
 
         `on_text` is called with each text delta as it arrives, so the caller
         can render tokens live. Tool-call deltas are accumulated by index and
@@ -75,9 +116,11 @@ class AtomGPT:
                               timeout=self.timeout) as r:
                 if r.status_code >= 400:
                     r.read()
-                    raise AtomGPTError(
-                        f"{r.status_code} from {self.base_url}: {r.text[:400]}"
-                    )
+                    detail = (f"{r.status_code} from {self.base_url}: "
+                              f"{r.text[:400]}")
+                    if r.status_code in RETRY_STATUSES:
+                        raise _Retryable(detail, _retry_after(r))
+                    raise AtomGPTError(detail)
                 for line in r.iter_lines():
                     if cancelled is not None and cancelled.is_set():
                         finish_reason = "cancelled"
@@ -106,6 +149,9 @@ class AtomGPT:
                             self._merge_tool_call(tool_calls, tc)
                         if choice.get("finish_reason"):
                             finish_reason = choice["finish_reason"]
+        except httpx.TimeoutException as e:
+            raise _Retryable(f"request to {self.base_url} timed out: {e}") \
+                from e
         except httpx.HTTPError as e:
             raise AtomGPTError(f"request to {self.base_url} failed: {e}") from e
 
@@ -145,3 +191,12 @@ class AtomGPT:
             entry["function"]["name"] = fn["name"]
         if fn.get("arguments"):
             entry["function"]["arguments"] += fn["arguments"]
+
+
+def _retry_after(response) -> float:
+    """Seconds the server asked us to wait, if it said."""
+    header = response.headers.get("retry-after", "")
+    try:
+        return max(0.0, float(header))
+    except (TypeError, ValueError):
+        return 0.0

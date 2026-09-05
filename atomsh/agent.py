@@ -5,7 +5,8 @@ from pathlib import Path
 
 from . import tools as toolkit
 from .client import AtomGPT, AtomGPTError
-from .config import MAX_STEPS
+from .compact import compact
+from .config import CONTEXT_TOKENS, MAX_STEPS
 from .interrupt import escape_watch
 from .permissions import ALLOW, Permissions
 from .prompt import system_prompt
@@ -63,11 +64,18 @@ class Agent:
                 state["last"] = piece
                 print(piece, end="", flush=True)
 
+            messages, compacted = compact(self.session.messages,
+                                          CONTEXT_TOKENS)
+            if compacted:
+                self.session.messages = messages
+                print(self._dim("  context compacted"))
+
             try:
                 with escape_watch() as cancelled:
                     result = self.client.stream(
                         self.session.messages, self.tool_schema, self.model,
                         on_text=on_text, cancelled=cancelled,
+                        notify=lambda m: print(self._dim(f"  {m}")),
                     )
             except AtomGPTError as e:
                 print(f"\n{self._dim('error:')} {e}")

@@ -49,11 +49,27 @@ def _clip(text: str, limit: int = MAX_OUTPUT) -> str:
             + text[-tail:])
 
 
-def _tail(text: str, lines: int) -> str:
+def _tail_file(path: Path, lines: int, window: int = 256 * 1024):
+    """Last `lines` lines of a file, and its total size.
+
+    Reads only the final `window` bytes. A background build can write a log
+    far larger than memory, so the whole file is never loaded to show its
+    tail.
+    """
+    try:
+        with open(path, "rb") as fh:
+            size = fh.seek(0, os.SEEK_END)
+            start = max(0, size - window)
+            fh.seek(start)
+            data = fh.read()
+    except OSError as e:
+        return f"(could not read {path}: {e})", 0
+    text = data.decode("utf-8", "replace")
+    if start:
+        # The window almost certainly began mid-line; drop that fragment.
+        text = text.split("\n", 1)[-1]
     parts = text.splitlines()
-    if len(parts) <= lines:
-        return text
-    return "\n".join(parts[-lines:])
+    return "\n".join(parts[-lines:]), size
 
 
 # Background commands. A build or a batch job outlives any sane tool timeout,
@@ -343,11 +359,7 @@ def check_command(root: Path, job_id: str = None, wait: int = 0,
         time.sleep(2)
 
     elapsed = int(time.time() - meta.get("started", time.time()))
-    try:
-        output = Path(meta["log"]).read_text(encoding="utf-8",
-                                             errors="replace")
-    except OSError as e:
-        output = f"(could not read {meta.get('log')}: {e})"
+    output, size = _tail_file(Path(meta["log"]), max(1, lines))
 
     if _alive(meta):
         status = f"job {job_id}: still running after {elapsed}s"
@@ -356,8 +368,9 @@ def check_command(root: Path, job_id: str = None, wait: int = 0,
         code = "unknown, killed?" if code is None else code
         status = f"job {job_id}: finished after {elapsed}s [exit code {code}]"
 
-    body = _clip(_tail(output.strip(), lines)) or "(no output yet)"
-    return f"{status}\n--- last {lines} lines of {meta['log']} ---\n{body}"
+    body = _clip(output.strip()) or "(no output yet)"
+    return (f"{status}\n--- last {lines} lines of {meta['log']} "
+            f"({size} bytes total) ---\n{body}")
 
 
 HANDLERS = {

@@ -30,6 +30,11 @@ REQUEST_TIMEOUT = 300
 # and overridable for anyone who wants a tighter leash.
 MAX_STEPS = int(os.environ.get("ATOMSH_MAX_STEPS") or 200)
 
+# Ceiling for the transcript sent to the model. Under the real window, since
+# the estimate is approximate and the reply needs room of its own; a 400 for
+# an overlong request ends the run, so it is better to compact slightly early.
+CONTEXT_TOKENS = int(os.environ.get("ATOMSH_CONTEXT_TOKENS") or 48000)
+
 
 def _xdg(env_var: str, default: str) -> Path:
     return Path(os.environ.get(env_var) or Path.home() / default)
