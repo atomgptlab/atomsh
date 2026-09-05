@@ -21,11 +21,18 @@ most recent exchanges, which are what the model is actually working from.
 ELIDED = "[output elided to fit the context window]"
 
 # Rough, deliberately dependency-free. Four characters per token is the usual
-# English approximation; being wrong by 20% only shifts when compaction fires.
-CHARS_PER_TOKEN = 4
+# English approximation, but a coding agent's transcript is mostly not English:
+# source, dense JSON, base64 and - when a tool reads a binary file by mistake -
+# effectively random bytes, all of which tokenize far worse. Under-counting is
+# the dangerous direction, because the run dies on a 400 rather than merely
+# compacting sooner than it had to.
+CHARS_PER_TOKEN = 3
 
 # Exchanges at the end that are never compacted, counted in blocks.
 KEEP_RECENT = 4
+
+# How much of the newest tool result survives when even that has to give.
+TRIM_TO = 2000
 
 
 def estimate_tokens(messages: list) -> int:
@@ -81,14 +88,22 @@ def _elide(block: list) -> bool:
     return changed
 
 
-def compact(messages: list, limit: int):
+def compact(messages: list, limit: int, force: bool = False):
     """Return (messages, compacted) with the list brought under `limit`.
 
     Messages are mutated in place where content is elided, so the caller's
     session ends up holding the smaller version too - the point is to bound
     memory and the saved session file, not only the request.
+
+    `force` is for the case the estimate got it wrong and the endpoint has
+    already refused the request as too long. Trusting the estimate then would
+    do nothing at all, so the target becomes half of what is currently there,
+    which guarantees the retry is smaller than the attempt that failed.
     """
-    if estimate_tokens(messages) <= limit:
+    current = estimate_tokens(messages)
+    if force:
+        limit = min(limit, current // 2)
+    elif current <= limit:
         return messages, False
 
     head, middle, tail = _split(messages)
@@ -111,5 +126,25 @@ def compact(messages: list, limit: int):
     # block is removed entire, so calls and results never separate.
     while middle and estimate_tokens(rebuilt()) > limit:
         middle.pop(0)
+
+    if not force:
+        return rebuilt(), True
+
+    # Forcing means the endpoint has already refused this transcript, so the
+    # recent exchanges are no longer sacred: a task that continues with less
+    # context beats one that stops. The newest block is kept longest, and even
+    # it is trimmed rather than emptied, so the model still sees what its last
+    # tool call returned.
+    for block in tail[:-1]:
+        if estimate_tokens(rebuilt()) <= limit:
+            break
+        _elide(block)
+
+    if estimate_tokens(rebuilt()) > limit and tail:
+        for message in tail[-1]:
+            if message.get("role") == "tool":
+                body = message.get("content") or ""
+                if len(body) > TRIM_TO:
+                    message["content"] = body[:TRIM_TO] + "\n" + ELIDED
 
     return rebuilt(), True

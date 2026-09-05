@@ -11,6 +11,17 @@ from .interrupt import escape_watch
 from .permissions import ALLOW, Permissions
 from .prompt import system_prompt
 
+# How many times one step may be shrunk and retried before giving up. Each
+# retry halves the transcript, so a few attempts cover a very wrong estimate.
+MAX_SHRINKS = 4
+
+
+def _too_long(error) -> bool:
+    """Whether an endpoint error is "your request exceeded the window"."""
+    text = str(error).lower()
+    return "context length" in text or "too many tokens" in text
+
+
 DIM = "\033[2m"
 BOLD = "\033[1m"
 RESET = "\033[0m"
@@ -51,6 +62,7 @@ class Agent:
         """Run one user turn to completion. Returns the final assistant text."""
         self.session.messages.append({"role": "user", "content": user_text})
         final = ""
+        shrinks = 0
 
         for _ in range(MAX_STEPS):
             # `last` doubles as "have we printed anything this step": stripped
@@ -78,6 +90,20 @@ class Agent:
                         notify=lambda m: print(self._dim(f"  {m}")),
                     )
             except AtomGPTError as e:
+                # The estimate is approximate, and high-entropy content -
+                # base64, dense JSON, a binary file read by mistake - tokenizes
+                # far worse than it measures. When the endpoint says the
+                # request was too long it is right and the estimate was wrong,
+                # so shrink hard and try again rather than losing the task.
+                if _too_long(e) and shrinks < MAX_SHRINKS:
+                    shrinks += 1
+                    messages, _ = compact(self.session.messages,
+                                          CONTEXT_TOKENS, force=True)
+                    self.session.messages = messages
+                    self.session.save()
+                    print(self._dim("  request too long — compacted further, "
+                                    "retrying"))
+                    continue
                 print(f"\n{self._dim('error:')} {e}")
                 return ""
 
