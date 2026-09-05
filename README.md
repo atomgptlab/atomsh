@@ -97,7 +97,12 @@ loop. Use them through a chat client instead.
 ## Tools
 
 `read_file`, `write_file`, `edit_file`, `list_dir`, `glob_files`,
-`grep_files`, `bash`.
+`grep_files`, `bash`, `check_command`.
+
+`bash` runs in a login shell, so `module` and scheduler commands work on a
+cluster. Work that outlasts a tool timeout — configure, make, a batch job —
+starts with `background=True` and is followed with `check_command`, which
+reports status and output and can wait for the job to finish.
 
 ### Materials tools
 

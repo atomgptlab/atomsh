@@ -23,7 +23,12 @@ DEFAULT_MODEL = "gemma-4-26b"
 SERVER_SIDE_AGENT_PREFIX = "mcp."
 
 REQUEST_TIMEOUT = 300
-MAX_STEPS = 40
+
+# One installation or port can easily run past a hundred tool calls: configure,
+# build, read the failure, patch, rebuild, test. A cap low enough to stop that
+# mid-build reads to the user as the agent giving up, so it is generous here
+# and overridable for anyone who wants a tighter leash.
+MAX_STEPS = int(os.environ.get("ATOMSH_MAX_STEPS") or 200)
 
 
 def _xdg(env_var: str, default: str) -> Path:

@@ -6,10 +6,17 @@ failed command becomes something the model can read and correct.
 """
 
 import fnmatch
+import json
 import os
 import re
+import shlex
+import shutil
 import subprocess
+import time
+import uuid
 from pathlib import Path
+
+from .config import DATA_DIR
 
 MAX_OUTPUT = 30000
 SKIP_DIRS = {
@@ -22,6 +29,88 @@ def _truncate(text: str, limit: int = MAX_OUTPUT) -> str:
     if len(text) <= limit:
         return text
     return text[:limit] + f"\n… [truncated, {len(text) - limit} more characters]"
+
+
+def _clip(text: str, limit: int = MAX_OUTPUT) -> str:
+    """Shorten command output from the middle, keeping both ends.
+
+    A build that fails says so on its last line, so cutting the tail is the
+    one thing a command result must never do. Half the budget goes to the
+    start (what was run, how it was configured) and half to the end (the
+    error), with the middle elided.
+    """
+    if len(text) <= limit:
+        return text
+    head = limit // 2
+    tail = limit - head
+    dropped = len(text) - limit
+    return (text[:head]
+            + f"\n… [{dropped} characters elided from the middle] …\n"
+            + text[-tail:])
+
+
+def _tail(text: str, lines: int) -> str:
+    parts = text.splitlines()
+    if len(parts) <= lines:
+        return text
+    return "\n".join(parts[-lines:])
+
+
+# Background commands. A build or a batch job outlives any sane tool timeout,
+# so `bash(background=True)` detaches it, and check_command reports on it.
+RUN_DIR = DATA_DIR / "runs"
+_JOBS = {}
+
+
+def _shell(command: str):
+    """Argv that runs `command` in a login shell when one is available.
+
+    Non-interactive shells do not source the user's profile, which on an HPC
+    system is where `module` (and therefore every compiler and every scheduler
+    command) comes from. Falling back to sh keeps this working anywhere.
+    """
+    if shutil.which("bash"):
+        return ["bash", "-lc", command]
+    return ["sh", "-c", command]
+
+
+def _job_meta(job_id: str):
+    """Metadata for a job started earlier, possibly in an older session."""
+    if job_id in _JOBS:
+        return _JOBS[job_id]
+    path = RUN_DIR / f"{job_id}.json"
+    if not path.exists():
+        return None
+    try:
+        return json.loads(path.read_text())
+    except (OSError, ValueError):
+        return None
+
+
+def _alive(meta) -> bool:
+    proc = meta.get("proc")
+    if proc is not None:
+        return proc.poll() is None
+    try:
+        os.kill(meta["pid"], 0)
+        return True
+    except (OSError, KeyError):
+        return False
+
+
+def _exit_code(meta):
+    """The command's exit status, from the Popen or from its status file.
+
+    A job outlives the session that started it, so the status is also written
+    to disk: after a restart there is no Popen left to ask.
+    """
+    proc = meta.get("proc")
+    if proc is not None and proc.returncode is not None:
+        return proc.returncode
+    try:
+        return int(Path(meta["rc"]).read_text().strip())
+    except (OSError, ValueError, KeyError):
+        return None
 
 
 def _resolve(path: str, root: Path) -> Path:
@@ -172,21 +261,103 @@ def grep_files(root: Path, pattern: str, path: str = ".",
     return _truncate("\n".join(out)) or f"No matches for {pattern!r}."
 
 
-def bash(root: Path, command: str, timeout: int = 120) -> str:
+def bash(root: Path, command: str, timeout: int = 120,
+         background: bool = False) -> str:
     """Run a shell command in the workspace and return combined output."""
+    if background:
+        return _start_background(root, command)
     try:
         proc = subprocess.run(
-            command, shell=True, cwd=str(root), timeout=timeout,
+            _shell(command), cwd=str(root), timeout=timeout,
             stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
         )
-    except subprocess.TimeoutExpired:
-        return f"Error: command timed out after {timeout}s."
+    except subprocess.TimeoutExpired as e:
+        partial = e.output or ""
+        if isinstance(partial, bytes):
+            partial = partial.decode("utf-8", "replace")
+        note = (f"Error: command timed out after {timeout}s. Long work "
+                f"belongs in the background: rerun with background=True "
+                f"and poll it with check_command.")
+        partial = partial.strip()
+        if partial:
+            note += f"\nOutput before the timeout:\n{_clip(partial)}"
+        return note
     except OSError as e:
         return f"Error running command: {e}"
-    output = proc.stdout or ""
+    # The exit code is appended after clipping: it is the one line that must
+    # survive, and on a long failing build it sits at the very end.
+    output = _clip((proc.stdout or "").strip() or "(no output)")
     if proc.returncode != 0:
         output += f"\n[exit code {proc.returncode}]"
-    return _truncate(output.strip() or "(no output)")
+    return output
+
+
+def _start_background(root: Path, command: str) -> str:
+    """Launch a command detached and return its job id."""
+    job_id = uuid.uuid4().hex[:8]
+    try:
+        RUN_DIR.mkdir(parents=True, exist_ok=True)
+        log = RUN_DIR / f"{job_id}.log"
+        rc = RUN_DIR / f"{job_id}.rc"
+        # Record the status on the way out so it is still readable in a later
+        # session, when this Popen no longer exists.
+        # A trap, not a trailing line: a command may well end in `exit`,
+        # which would jump straight past anything appended after it.
+        wrapped = (f"__rcfile={shlex.quote(str(rc))}\n"
+                   f"trap 'printf %s \"$?\" > \"$__rcfile\"' EXIT\n"
+                   f"{command}\n")
+        with open(log, "wb") as fh:
+            proc = subprocess.Popen(
+                _shell(wrapped), cwd=str(root), stdout=fh,
+                stderr=subprocess.STDOUT, start_new_session=True,
+            )
+    except OSError as e:
+        return f"Error starting background command: {e}"
+    meta = {"id": job_id, "pid": proc.pid, "command": command,
+            "log": str(log), "rc": str(rc), "started": time.time()}
+    try:
+        (RUN_DIR / f"{job_id}.json").write_text(json.dumps(meta))
+    except OSError:
+        pass
+    _JOBS[job_id] = dict(meta, proc=proc)
+    return (f"Started background job {job_id} (pid {proc.pid}).\n"
+            f"Output is being written to {log}\n"
+            f'Poll it with check_command(job_id="{job_id}", wait=300).')
+
+
+def check_command(root: Path, job_id: str = None, wait: int = 0,
+                  lines: int = 80) -> str:
+    """Report on a background command, optionally waiting for it to finish."""
+    if not job_id:
+        known = sorted(_JOBS) or [p.stem for p in RUN_DIR.glob("*.json")]
+        if not known:
+            return "No background commands have been started."
+        return "Background jobs: " + ", ".join(known)
+
+    meta = _job_meta(job_id)
+    if meta is None:
+        return f"Error: no background job {job_id!r}."
+
+    deadline = time.time() + max(0, min(wait, 3600))
+    while _alive(meta) and time.time() < deadline:
+        time.sleep(2)
+
+    elapsed = int(time.time() - meta.get("started", time.time()))
+    try:
+        output = Path(meta["log"]).read_text(encoding="utf-8",
+                                             errors="replace")
+    except OSError as e:
+        output = f"(could not read {meta.get('log')}: {e})"
+
+    if _alive(meta):
+        status = f"job {job_id}: still running after {elapsed}s"
+    else:
+        code = _exit_code(meta)
+        code = "unknown, killed?" if code is None else code
+        status = f"job {job_id}: finished after {elapsed}s [exit code {code}]"
+
+    body = _clip(_tail(output.strip(), lines)) or "(no output yet)"
+    return f"{status}\n--- last {lines} lines of {meta['log']} ---\n{body}"
 
 
 HANDLERS = {
@@ -197,6 +368,7 @@ HANDLERS = {
     "glob_files": glob_files,
     "grep_files": grep_files,
     "bash": bash,
+    "check_command": check_command,
 }
 
 # Tools that change something on disk or run arbitrary code. The permission
@@ -257,9 +429,25 @@ SCHEMA = [
          "glob": {"type": "string", "description": "Only search files matching this glob."}},
         ["pattern"]),
     _fn("bash",
-        "Run a shell command in the workspace. Use for builds, tests and git; "
-        "prefer grep_files and glob_files for searching.",
+        "Run a shell command in the workspace, in a login shell so `module` "
+        "and scheduler commands work. Use for builds, tests and git; prefer "
+        "grep_files and glob_files for searching. Anything that may outlast "
+        "the timeout (a build, a test suite, a batch job) should be started "
+        "with background=True instead of a longer timeout.",
         {"command": {"type": "string"},
-         "timeout": {"type": "integer", "description": "Seconds before the command is killed."}},
+         "timeout": {"type": "integer", "description": "Seconds before the command is killed."},
+         "background": {"type": "boolean",
+                        "description": "Detach and return a job id now."}},
         ["command"]),
+    _fn("check_command",
+        "Report on a command started with background=True: its status and "
+        "the tail of its output. With `wait`, block until it finishes or the "
+        "wait runs out, which is cheaper than polling. Omit job_id to list "
+        "known jobs.",
+        {"job_id": {"type": "string"},
+         "wait": {"type": "integer",
+                  "description": "Seconds to block waiting for it to finish."},
+         "lines": {"type": "integer",
+                   "description": "Trailing lines of output to show."}},
+        []),
 ]

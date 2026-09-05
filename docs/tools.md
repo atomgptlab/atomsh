@@ -19,7 +19,29 @@ Run locally, in your workspace.
 | `list_dir` | List a directory |
 | `glob_files` | Find files by pattern, newest first |
 | `grep_files` | Search file contents by regular expression |
-| `bash` | Run a shell command in the workspace |
+| `bash` | Run a shell command in the workspace, or start one in the background |
+| `check_command` | Status and output of a background command, optionally waiting for it |
+
+`bash` runs the command in a login shell, so `module` and the compilers and
+scheduler commands it puts on `PATH` behave as they do in your own terminal.
+
+Long output is elided from the middle rather than the end: a build reports its
+failure on the last lines, and the `[exit code N]` marker is appended after
+that clipping, so neither can be cut off.
+
+A build or a batch job outlives any sane timeout, so `bash(background=True)`
+detaches it and returns a job id immediately, with output going to a log under
+`~/.local/share/atomsh/runs/`. `check_command(job_id=…, wait=300)` then blocks
+until it finishes or the wait runs out, which costs one step instead of many:
+
+```text
+› build quantum espresso
+  · bash(command=./configure …)
+  · bash(command=make -j 16, background=True)
+Started background job 4f2a91c3 (pid 20418).
+  · check_command(job_id=4f2a91c3, wait=600)
+job 4f2a91c3: finished after 512s [exit code 0]
+```
 
 `edit_file` refuses an ambiguous match rather than guessing, and refuses text
 it cannot find. Both refusals are returned to the model as readable errors, so

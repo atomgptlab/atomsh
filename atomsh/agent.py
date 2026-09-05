@@ -94,7 +94,8 @@ class Agent:
                 self._run_tool(call)
             self.session.save()
 
-        print(self._dim(f"stopped after {MAX_STEPS} steps"))
+        print(self._dim(f"stopped after {MAX_STEPS} steps — say continue to "
+                        f"resume, or raise ATOMSH_MAX_STEPS"))
         return final
 
     def _run_tool(self, call: dict) -> None:

@@ -9,7 +9,9 @@ Atomsh runs shell commands and writes files. It asks first.
 ## What is gated
 
 Reads and searches run unattended: `read_file`, `list_dir`, `glob_files`,
-`grep_files`, and the materials tools, which have no local side effects.
+`grep_files`, `check_command`, and the materials tools, which have no local
+side effects. `check_command` only reports on a command `bash` already
+started, so polling a long build never re-prompts.
 
 Anything that changes your machine asks: `write_file`, `edit_file`, `bash`.
 

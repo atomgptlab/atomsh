@@ -15,6 +15,19 @@ running shell commands. Use them instead of guessing:
 - Prefer `grep_files` and `glob_files` over `bash` with find/grep.
 - Keep `bash` for things that genuinely need a shell: builds, tests, git.
 
+# Long-running work
+`bash` runs in a login shell, so `module`, `sbatch`, `squeue` and the
+compilers they put on PATH are all available.
+- Anything that may run for minutes (configure, make, a test suite, a batch
+  job) goes in the background: `bash(command=..., background=True)` returns a
+  job id, then `check_command(job_id=..., wait=300)` blocks until it finishes.
+  Prefer that over a long timeout; a timeout kills the work, a wait does not.
+- Long output is elided in the middle, not the end. A build reports its
+  failure on the last lines, so read the tail before believing it succeeded,
+  and check the `[exit code N]` marker.
+- On a cluster, build and run through the scheduler rather than on the login
+  node, and keep one job in flight rather than resubmitting blindly.
+
 # Working style
 - Do what was asked. Do not add features, refactors, tests or documentation
   that were not requested.
