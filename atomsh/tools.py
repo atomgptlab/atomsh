@@ -5,6 +5,7 @@ result. Errors are returned as text rather than raised, so a bad path or a
 failed command becomes something the model can read and correct.
 """
 
+import base64
 import fnmatch
 import json
 import os
@@ -129,6 +130,44 @@ def _exit_code(meta):
         return None
 
 
+# Extensions we can hand to a vision model. Anything else binary is refused
+# rather than decoded into replacement characters.
+IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp"}
+IMAGE_MEDIA = {".jpg": "jpeg", ".jpeg": "jpeg", ".png": "png", ".gif": "gif",
+               ".webp": "webp", ".bmp": "bmp"}
+
+# Roughly what a served image costs once tiled; used only to keep the context
+# estimate honest, since an image is not free the way its file size suggests.
+IMAGE_TOKEN_COST = 1600
+
+# Images cannot travel in a tool result - the format requires a string - so a
+# viewed image is parked here and the agent turns it into a user message.
+PENDING_IMAGES = []
+
+MAX_IMAGE_BYTES = 4 * 1024 * 1024
+
+
+def _looks_binary(path: Path) -> bool:
+    """Whether a file is binary, judged the way file(1) does: a NUL byte.
+
+    Decoding a PDF or a checkpoint as text does not fail, it succeeds and
+    returns thousands of replacement characters, which reads to a model as
+    content rather than as an error and can exhaust the context window.
+    """
+    try:
+        with open(path, "rb") as fh:
+            chunk = fh.read(8192)
+    except OSError:
+        return False
+    if b"\x00" in chunk:
+        return True
+    if not chunk:
+        return False
+    # A high proportion of undecodable bytes means the same thing.
+    printable = sum(1 for b in chunk if 32 <= b < 127 or b in (9, 10, 13))
+    return printable / len(chunk) < 0.7
+
+
 def _resolve(path: str, root: Path) -> Path:
     p = Path(path).expanduser()
     return p.resolve() if p.is_absolute() else (root / p).resolve()
@@ -148,6 +187,11 @@ def is_outside(path: str, root: Path) -> bool:
 def read_file(root: Path, path: str, offset: int = 1, limit: int = 2000) -> str:
     """Return file contents with 1-indexed line numbers."""
     target = _resolve(path, root)
+    if target.is_file() and _looks_binary(target):
+        if target.suffix.lower() in IMAGE_SUFFIXES:
+            return f"Error: {path} is an image. Use view_image to see it."
+        return (f"Error: {path} looks like a binary file, not text. "
+                f"Reading it returns replacement characters, not content.")
     try:
         with open(target, encoding="utf-8", errors="replace") as fh:
             lines = fh.readlines()
@@ -373,8 +417,41 @@ def check_command(root: Path, job_id: str = None, wait: int = 0,
             f"({size} bytes total) ---\n{body}")
 
 
+def view_image(root: Path, path: str) -> str:
+    """Show an image to the model.
+
+    The image cannot be returned from here: a tool result has to be a string.
+    It is parked in PENDING_IMAGES and the agent sends it as a user message
+    straight after this call, so the model sees the picture in the
+    conversation rather than a description of it.
+    """
+    target = _resolve(path, root)
+    if not target.is_file():
+        return f"Error: {path} does not exist."
+    suffix = target.suffix.lower()
+    if suffix not in IMAGE_SUFFIXES:
+        return (f"Error: {path} is not an image "
+                f"({', '.join(sorted(IMAGE_SUFFIXES))}).")
+    size = target.stat().st_size
+    if size > MAX_IMAGE_BYTES:
+        return (f"Error: {path} is {size} bytes, over the "
+                f"{MAX_IMAGE_BYTES} limit for an image.")
+    try:
+        blob = base64.b64encode(target.read_bytes()).decode()
+    except OSError as e:
+        return f"Error reading {path}: {e}"
+    media = IMAGE_MEDIA.get(suffix, "png")
+    PENDING_IMAGES.append({
+        "path": str(target),
+        "url": f"data:image/{media};base64,{blob}",
+    })
+    return (f"Loaded {path} ({size} bytes). It follows in the next message; "
+            f"describe what you need from it there.")
+
+
 HANDLERS = {
     "read_file": read_file,
+    "view_image": view_image,
     "write_file": write_file,
     "edit_file": edit_file,
     "list_dir": list_dir,
@@ -452,6 +529,12 @@ SCHEMA = [
          "background": {"type": "boolean",
                         "description": "Detach and return a job id now."}},
         ["command"]),
+    _fn("view_image",
+        "Look at an image file (png, jpg, gif, webp, bmp). The image is sent "
+        "to you in the message after the tool result, so read it there. "
+        "read_file cannot show an image.",
+        {"path": {"type": "string"}},
+        ["path"]),
     _fn("check_command",
         "Report on a command started with background=True: its status and "
         "the tail of its output. With `wait`, block until it finishes or the "

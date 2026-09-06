@@ -126,6 +126,7 @@ class Agent:
 
             for call in calls:
                 self._run_tool(call)
+            self._flush_images()
             self.session.save()
 
         print(self._dim(f"stopped after {MAX_STEPS} steps — say continue to "
@@ -161,6 +162,25 @@ class Agent:
         except Exception as e:  # a tool must never kill the session
             output = f"Error: {name} raised {type(e).__name__}: {e}"
         self._reply(call, output)
+
+    def _flush_images(self) -> None:
+        """Send any image a tool loaded, as its own user message.
+
+        A tool result must be a string, so an image cannot come back from the
+        tool itself. It arrives here instead, immediately after the results,
+        which is the earliest point the model can actually look at it.
+        """
+        while toolkit.PENDING_IMAGES:
+            image = toolkit.PENDING_IMAGES.pop(0)
+            self.session.messages.append({
+                "role": "user",
+                "content": [
+                    {"type": "text",
+                     "text": f"Image: {image['path']}"},
+                    {"type": "image_url",
+                     "image_url": {"url": image["url"]}},
+                ],
+            })
 
     def _reply(self, call: dict, content: str) -> None:
         self.session.messages.append({

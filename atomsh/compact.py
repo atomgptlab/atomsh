@@ -35,11 +35,36 @@ KEEP_RECENT = 4
 TRIM_TO = 2000
 
 
+IMAGE_TOKEN_COST = 1600
+
+
+def _content_chars(content) -> int:
+    """Characters in a message body, whether it is text or mixed parts.
+
+    An image is charged a flat token cost rather than the length of its data
+    URL: base64 is enormous and would swamp the estimate, but the image is not
+    free either, and treating it as free is how a transcript quietly overruns.
+    """
+    if isinstance(content, str):
+        return len(content)
+    if not isinstance(content, list):
+        return 0
+    total = 0
+    for part in content:
+        if not isinstance(part, dict):
+            continue
+        if part.get("type") == "image_url":
+            total += IMAGE_TOKEN_COST * CHARS_PER_TOKEN
+        else:
+            total += len(part.get("text") or "")
+    return total
+
+
 def estimate_tokens(messages: list) -> int:
     """Approximate token count of a message list."""
     total = 0
     for m in messages:
-        total += len(m.get("content") or "")
+        total += _content_chars(m.get("content"))
         for call in m.get("tool_calls") or []:
             fn = call.get("function") or {}
             total += len(fn.get("name") or "")
@@ -77,12 +102,27 @@ def _split(messages: list):
     return head, groups[:-KEEP_RECENT], groups[-KEEP_RECENT:]
 
 
+ELIDED_IMAGE = "[image elided to fit the context window]"
+
+
 def _elide(block: list) -> bool:
-    """Blank out tool results in one block. True if anything changed."""
+    """Blank out tool results and images in one block. True if changed."""
     changed = False
     for message in block:
-        if message.get("role") == "tool" and message.get("content") != ELIDED:
-            if len(message.get("content") or "") > len(ELIDED):
+        content = message.get("content")
+        # An image costs as much as a long file and is rarely needed twice,
+        # so it goes at the same point old tool output does.
+        if isinstance(content, list):
+            if any(p.get("type") == "image_url"
+                   for p in content if isinstance(p, dict)):
+                text = " ".join(p.get("text") or "" for p in content
+                                if isinstance(p, dict)
+                                and p.get("type") != "image_url")
+                message["content"] = f"{text} {ELIDED_IMAGE}".strip()
+                changed = True
+            continue
+        if message.get("role") == "tool" and content != ELIDED:
+            if len(content or "") > len(ELIDED):
                 message["content"] = ELIDED
                 changed = True
     return changed
